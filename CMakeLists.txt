@@ -26,12 +26,13 @@ enable_language(C CXX ASM)
 message("Build type: " ${CMAKE_BUILD_TYPE})
 
 # Setup compiler settings
-set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS ON)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Core MCU flags, CPU type, instruction set and FPU setup
 set(cpu_PARAMS 
@@ -40,14 +41,21 @@ set(cpu_PARAMS
     # -mcpu, -mfloat, -mfloat-abi, ...
 )
 
+
+file(GLOB_RECURSE USER_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/Src/*.c" "${CMAKE_CURRENT_SOURCE_DIR}/Src/*.S")
+file(GLOB_RECURSE DRIVER_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/stm32f4-drivers/src/*.c")
+
 # Sources
 set(sources_SRCS
-	${CMAKE_CURRENT_SOURCE_DIR}/Src/main.c
+    ${USER_SOURCES}
+    ${DRIVER_SOURCES}
 )
 
 # Include directories for all compilers
 set(include_DIRS
 	${CMAKE_CURRENT_SOURCE_DIR}/Inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/stm32f4-drivers/inc
+    ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 # Include directories for each compiler
