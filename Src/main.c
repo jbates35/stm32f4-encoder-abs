@@ -136,10 +136,16 @@ void setup_main_sequence_dma(void) {
 #define LCD_SET_DDRAM_ADDR_MASK 0x80
 
 #define RS_OFF_MASK 0x0
-#define RS_ON_MASK 0x20
+#define RS_ON_MASK 0x1
 
 #define RW_WRITE_MASK 0x0
-#define RW_READ_MASK 0x10
+#define RW_READ_MASK 0x2
+
+#define CLOCK_HIGH_MASK 0x4
+#define CLOCK_LOW_MASK 0
+
+#define BACKLIGHT_ON_MASK 0x8
+#define BACKLIGHT_OFF_MASK 0
 
 // END OF 1602 MACROS
 
@@ -157,8 +163,17 @@ int main(void) {
   // Display on (DB5-7 = 0, then DB5-7 = 1, RS/RW = 0)
   uint8_t disp_on =
       LCD_DISPLAY_CFG_MASK | LCD_DISPLAY_ON_MASK | LCD_CURSOR_ON_MASK;
-  uint8_t byte1 = RS_OFF_MASK | RW_WRITE_MASK | (0XF | (disp_on >> 4));
-  uint8_t byte2 = RS_OFF_MASK | RW_WRITE_MASK | (0XF | (disp_on >> 0));
+  uint8_t byte1 = RS_OFF_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK |
+                  BACKLIGHT_ON_MASK | (0XF0 & disp_on);
+
+  uint8_t byte2 = RS_OFF_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK |
+                  BACKLIGHT_ON_MASK | (0XF0 & disp_on);
+
+  uint8_t byte3 = RS_OFF_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK |
+                  BACKLIGHT_ON_MASK | (0XF0 & (disp_on << 4));
+
+  uint8_t byte4 = RS_OFF_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK |
+                  BACKLIGHT_ON_MASK | (0XF0 & (disp_on << 4));
 
   // Entry mode set (DB5-7 = 0,  then DB5-6 = 1, RS/RW=0)
 
