@@ -39,11 +39,17 @@ int _write(int le, char *ptr, int len) {
   return len;
 }
 
+void i2c_driver_setup();
+
 #define I2C_GPIO_PORT GPIOB
 #define I2C_GPIO_SCL_PIN 8
 #define I2C_GPIO_SDA_PIN 9
 
 #define I2C_PORT I2C1
+#define I2C_PORT_EV_IRQN I2C1_EV_IRQn
+#define I2C_PORT_EV_IRQ_HANDLER I2C1_EV_IRQHandler
+#define I2C_PORT_ERR_IRQN I2C1_ER_IRQn
+#define I2C_PORT_ERR_IRQ_HANDLER I2C1_ER_IRQHandler
 
 #define I2C_DMA_TX_PORT DMA1
 #define I2C_DMA_TX_STREAM DMA1_Stream6
@@ -60,7 +66,7 @@ int _write(int le, char *ptr, int len) {
 #define SIZEOF(arr) ((unsigned int)sizeof(arr) / sizeof(arr[0]))
 
 #define VERY_FAST 16
-#define FAST 100000
+#define FAST 10000
 #define MEDIUM 300000
 #define SLOW 1000000
 #define WAIT(CNT)                                                              \
@@ -96,8 +102,8 @@ void setup_main_sequence_dma(void) {
 */
 
 // START OF 1602 I2C MACROS
-#define LCD_I2C_ADDR 0x38     // When A0/1/2 are all LOW
-#define LCD_I2C_ADDR_ALT 0x3F // When A0/1/2 are all HIGH
+#define LCD_I2C_ADDR_VSS 0x38 // When A0/1/2 are all LOW
+#define LCD_I2C_ADDR_VDD 0x3F // When A0/1/2 are all HIGH
 
 // START OF 1602 LCD MACROS
 // NOTE: Following two commands require 1520ms
@@ -109,7 +115,7 @@ void setup_main_sequence_dma(void) {
 #define LCD_ENTRY_MODE_INC 0x2
 #define LCD_ENTRY_MODE_SHIFT 0x1
 
-#define LCD_TOGGLE_DISPLAY_ON_MASK 0x8
+#define LCD_DISPLAY_CFG_MASK 0x8
 #define LCD_DISPLAY_ON_MASK 0x4
 #define LCD_CURSOR_ON_MASK 0x2
 #define LCD_BLINK_ON_MASK 0x1
@@ -128,10 +134,64 @@ void setup_main_sequence_dma(void) {
 
 #define LCD_SET_CGRAM_ADDR_MASK 0x40
 #define LCD_SET_DDRAM_ADDR_MASK 0x80
+
+#define RS_OFF_MASK 0x0
+#define RS_ON_MASK 0x20
+
+#define RW_WRITE_MASK 0x0
+#define RW_READ_MASK 0x10
+
 // END OF 1602 MACROS
 
+// typedef struct {
+//   uint8_t byte;
+//   int wait_length;
+// } lcd_package_t;
+//
 int main(void) {
-  /* Loop forever */
-  for (;;)
-    ;
+  i2c_driver_setup();
+
+  // Refer to page 39 of manual
+  // Function set 4 bit (DB5 = 1, RS=0, RW=0)
+
+  // Display on (DB5-7 = 0, then DB5-7 = 1, RS/RW = 0)
+  uint8_t disp_on =
+      LCD_DISPLAY_CFG_MASK | LCD_DISPLAY_ON_MASK | LCD_CURSOR_ON_MASK;
+  uint8_t byte1 = RS_OFF_MASK | RW_WRITE_MASK | (0XF | (disp_on >> 4));
+  uint8_t byte2 = RS_OFF_MASK | RW_WRITE_MASK | (0XF | (disp_on >> 0));
+
+  // Entry mode set (DB5-7 = 0,  then DB5-6 = 1, RS/RW=0)
+
+  // Write data to CGRAM//DDRAM (RS = 1, RW = 0, )
+
+  for (;;) {
+  }
+}
+
+void i2c_driver_setup() {
+  GPIO_peri_clock_control(I2C_GPIO_PORT, GPIO_CLOCK_ENABLE);
+  GPIOConfig_t default_gpio_cfg = {.mode = GPIO_MODE_ALTFN,
+                                   .speed = GPIO_SPEED_LOW,
+                                   .float_resistor = GPIO_PUPDR_NONE,
+                                   .output_type = GPIO_OP_TYPE_OPENDRAIN,
+                                   .alt_func_num = 4};
+
+  GPIOHandle_t i2c_sda_handle = {.p_GPIO_addr = I2C_GPIO_PORT,
+                                 .cfg = default_gpio_cfg};
+  i2c_sda_handle.cfg.pin_number = I2C_GPIO_SDA_PIN;
+  GPIO_init(&i2c_sda_handle);
+
+  GPIOHandle_t i2c_scl_handle = {.p_GPIO_addr = I2C_GPIO_PORT,
+                                 .cfg = default_gpio_cfg};
+  i2c_scl_handle.cfg.pin_number = I2C_GPIO_SCL_PIN;
+  GPIO_init(&i2c_scl_handle);
+
+  i2c_peri_clock_control(I2C_PORT, I2C_ENABLE);
+  I2CHandle_t i2c_handle = {.addr = I2C_PORT,
+                            .cfg = {.peri_clock_freq_hz = (uint32_t)16E6,
+                                    .device_mode = I2C_DEVICE_MODE_MASTER,
+                                    .scl_mode = I2C_SCL_MODE_SPEED_SM,
+                                    .dma_enable = I2C_DISABLE,
+                                    .enable_on_init = I2C_ENABLE}};
+  i2c_init(&i2c_handle);
 }
