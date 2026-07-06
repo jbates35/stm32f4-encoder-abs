@@ -102,8 +102,7 @@ void setup_main_sequence_dma(void) {
 */
 
 // START OF 1602 I2C MACROS
-#define LCD_I2C_ADDR_VSS 0x38 // When A0/1/2 are all LOW
-#define LCD_I2C_ADDR_VDD 0x3F // When A0/1/2 are all HIGH
+#define LCD_I2C_ADDR_VDD 0x27 // When A0/1/2 are all HIGH
 
 // START OF 1602 LCD MACROS
 // NOTE: Following two commands require 1520ms
@@ -156,24 +155,48 @@ void setup_main_sequence_dma(void) {
 //
 int main(void) {
   i2c_driver_setup();
+  WAIT(FAST);
+  uint8_t bytes[4];
 
   // Refer to page 39 of manual
-  // Function set 4 bit (DB5 = 1, RS=0, RW=0)
+  // Function set 4 bit (DB5 = 1, DB4=1, RS=0, RW=0)
+  uint8_t fn_set_4b = LCD_FUNCTION_MASK;
+  bytes[0] = RS_OFF_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK | BACKLIGHT_ON_MASK |
+             (0XF0 & fn_set_4b);
+
+  bytes[1] = RS_OFF_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK |
+             (0XF0 & fn_set_4b);
+
+  bytes[2] = RS_OFF_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK | BACKLIGHT_ON_MASK |
+             (0XF0 & (fn_set_4b << 4));
+
+  bytes[3] = RS_OFF_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK |
+             (0XF0 & (fn_set_4b << 4));
+
+  i2c_master_send(I2C_PORT, bytes, 2, LCD_I2C_ADDR_VDD, I2C_STOP);
+  WAIT(SLOW);
+
+  i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
+  WAIT(SLOW);
 
   // Display on (DB5-7 = 0, then DB5-7 = 1, RS/RW = 0)
   uint8_t disp_on =
       LCD_DISPLAY_CFG_MASK | LCD_DISPLAY_ON_MASK | LCD_CURSOR_ON_MASK;
-  uint8_t byte1 = RS_OFF_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK |
-                  BACKLIGHT_ON_MASK | (0XF0 & disp_on);
 
-  uint8_t byte2 = RS_OFF_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK |
-                  BACKLIGHT_ON_MASK | (0XF0 & disp_on);
+  bytes[0] = RS_OFF_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK | BACKLIGHT_ON_MASK |
+             (0XF0 & disp_on);
 
-  uint8_t byte3 = RS_OFF_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK |
-                  BACKLIGHT_ON_MASK | (0XF0 & (disp_on << 4));
+  bytes[1] = RS_OFF_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK |
+             (0XF0 & disp_on);
 
-  uint8_t byte4 = RS_OFF_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK |
-                  BACKLIGHT_ON_MASK | (0XF0 & (disp_on << 4));
+  bytes[2] = RS_OFF_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK | BACKLIGHT_ON_MASK |
+             (0XF0 & (disp_on << 4));
+
+  bytes[3] = RS_OFF_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK |
+             (0XF0 & (disp_on << 4));
+
+  i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
+  WAIT(SLOW);
 
   // Entry mode set (DB5-7 = 0,  then DB5-6 = 1, RS/RW=0)
 
