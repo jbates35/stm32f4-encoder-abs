@@ -155,7 +155,7 @@ void setup_main_sequence_dma(void) {
 //
 int main(void) {
   i2c_driver_setup();
-  WAIT(FAST);
+  WAIT(MEDIUM);
   uint8_t bytes[4];
   uint8_t upp, low;
 
