@@ -178,10 +178,10 @@ int main(void) {
       RS_OFF_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK | low;
 
   i2c_master_send(I2C_PORT, bytes, 2, LCD_I2C_ADDR_VDD, I2C_STOP);
-  WAIT(FAST);
+  WAIT(MEDIUM);
 
   i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
-  WAIT(FAST);
+  WAIT(MEDIUM);
 
   // Display on (DB5-7 = 0, then DB5-7 = 1, RS/RW = 0)
   uint8_t disp_on =
@@ -202,7 +202,7 @@ int main(void) {
       RS_OFF_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK | low;
 
   i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
-  WAIT(FAST);
+  WAIT(MEDIUM);
 
   // Entry mode set (DB5-7 = 0,  then DB5-6 = 1, RS/RW=0)
   uint8_t entry_mode_set = LCD_ENTRY_MODE_MASK | LCD_ENTRY_MODE_INC;
@@ -222,7 +222,7 @@ int main(void) {
       RS_OFF_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK | low;
 
   i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
-  WAIT(FAST);
+  WAIT(MEDIUM);
 
   // Return home
   uint8_t ret_home = LCD_RETURN_HOME;
@@ -242,7 +242,7 @@ int main(void) {
       RS_OFF_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK | low;
 
   i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
-  WAIT(FAST);
+  WAIT(MEDIUM);
 
   // Set DDRAM
 
@@ -266,8 +266,12 @@ int main(void) {
     bytes[3] =
         low | RS_ON_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK;
 
-    i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
-    WAIT(FAST);
+    if (i == len - 1)
+      i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD,
+                      I2C_STOP);
+    else
+      i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD,
+                      I2C_NO_STOP);
   }
 
   for (;;) {
