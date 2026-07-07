@@ -157,50 +157,118 @@ int main(void) {
   i2c_driver_setup();
   WAIT(FAST);
   uint8_t bytes[4];
+  uint8_t upp, low;
 
   // Refer to page 39 of manual
   // Function set 4 bit (DB5 = 1, DB4=1, RS=0, RW=0)
   uint8_t fn_set_4b = LCD_FUNCTION_MASK;
-  bytes[0] = RS_OFF_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK | BACKLIGHT_ON_MASK |
-             (0XF0 & fn_set_4b);
+  upp = 0xF0 & fn_set_4b;
+  low = 0xF0 & (fn_set_4b << 4);
 
-  bytes[1] = RS_OFF_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK |
-             (0XF0 & fn_set_4b);
+  bytes[0] =
+      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK | BACKLIGHT_ON_MASK | upp;
 
-  bytes[2] = RS_OFF_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK | BACKLIGHT_ON_MASK |
-             (0XF0 & (fn_set_4b << 4));
+  bytes[1] =
+      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK | upp;
 
-  bytes[3] = RS_OFF_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK |
-             (0XF0 & (fn_set_4b << 4));
+  bytes[2] =
+      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK | BACKLIGHT_ON_MASK | low;
+
+  bytes[3] =
+      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK | low;
 
   i2c_master_send(I2C_PORT, bytes, 2, LCD_I2C_ADDR_VDD, I2C_STOP);
-  WAIT(SLOW);
+  WAIT(FAST);
 
   i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
-  WAIT(SLOW);
+  WAIT(FAST);
 
   // Display on (DB5-7 = 0, then DB5-7 = 1, RS/RW = 0)
   uint8_t disp_on =
       LCD_DISPLAY_CFG_MASK | LCD_DISPLAY_ON_MASK | LCD_CURSOR_ON_MASK;
+  upp = 0xF0 & disp_on;
+  low = 0xF0 & (disp_on << 4);
 
-  bytes[0] = RS_OFF_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK | BACKLIGHT_ON_MASK |
-             (0XF0 & disp_on);
+  bytes[0] =
+      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK | BACKLIGHT_ON_MASK | upp;
 
-  bytes[1] = RS_OFF_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK |
-             (0XF0 & disp_on);
+  bytes[1] =
+      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK | upp;
 
-  bytes[2] = RS_OFF_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK | BACKLIGHT_ON_MASK |
-             (0XF0 & (disp_on << 4));
+  bytes[2] =
+      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK | BACKLIGHT_ON_MASK | low;
 
-  bytes[3] = RS_OFF_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK |
-             (0XF0 & (disp_on << 4));
+  bytes[3] =
+      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK | low;
 
   i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
-  WAIT(SLOW);
+  WAIT(FAST);
 
   // Entry mode set (DB5-7 = 0,  then DB5-6 = 1, RS/RW=0)
+  uint8_t entry_mode_set = LCD_ENTRY_MODE_MASK | LCD_ENTRY_MODE_INC;
+  upp = 0XF0 & entry_mode_set;
+  low = 0XF0 & (entry_mode_set << 4);
+
+  bytes[0] =
+      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK | BACKLIGHT_ON_MASK | upp;
+
+  bytes[1] =
+      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK | upp;
+
+  bytes[2] =
+      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK | BACKLIGHT_ON_MASK | low;
+
+  bytes[3] =
+      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK | low;
+
+  i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
+  WAIT(FAST);
+
+  // Return home
+  uint8_t ret_home = LCD_RETURN_HOME;
+  upp = 0XF0 & ret_home;
+  low = 0XF0 & (ret_home << 4);
+
+  bytes[0] =
+      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK | BACKLIGHT_ON_MASK | upp;
+
+  bytes[1] =
+      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK | upp;
+
+  bytes[2] =
+      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK | BACKLIGHT_ON_MASK | low;
+
+  bytes[3] =
+      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK | low;
+
+  i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
+  WAIT(FAST);
+
+  // Set DDRAM
 
   // Write data to CGRAM//DDRAM (RS = 1, RW = 0, )
+  uint8_t test_str[] = "test";
+  int len = SIZEOF(test_str);
+
+  for (int i = 0; i < 4; i++) {
+    upp = (0xF0 & test_str[i]);
+    low = (0xF0 & (test_str[i] << 4));
+
+    bytes[0] =
+        upp | RS_ON_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK | BACKLIGHT_ON_MASK;
+
+    bytes[1] =
+        upp | RS_ON_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK;
+
+    bytes[2] =
+        low | RS_ON_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK | BACKLIGHT_ON_MASK;
+
+    bytes[3] =
+        low | RS_ON_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK;
+
+    i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
+    WAIT(FAST);
+  }
 
   for (;;) {
   }
