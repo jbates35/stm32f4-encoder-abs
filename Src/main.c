@@ -157,7 +157,7 @@ void setup_main_sequence_dma(void) {
 //
 int main(void) {
   i2c_driver_setup();
-  WAIT(MEDIUM);
+  WAIT(SLOW);
   uint8_t bytes[4];
   uint8_t upp, low;
 
@@ -210,6 +210,26 @@ int main(void) {
   uint8_t entry_mode_set = LCD_ENTRY_MODE_MASK | LCD_ENTRY_MODE_INC;
   upp = 0XF0 & entry_mode_set;
   low = 0XF0 & (entry_mode_set << 4);
+
+  bytes[0] =
+      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK | BACKLIGHT_ON_MASK | upp;
+
+  bytes[1] =
+      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK | upp;
+
+  bytes[2] =
+      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK | BACKLIGHT_ON_MASK | low;
+
+  bytes[3] =
+      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK | low;
+
+  i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
+  WAIT(MEDIUM);
+
+  // Clear screen
+  uint8_t clear_screen = LCD_CLEAR_DISPLAY;
+  upp = 0XF0 & clear_screen;
+  low = 0XF0 & (clear_screen << 4);
 
   bytes[0] =
       RS_OFF_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK | BACKLIGHT_ON_MASK | upp;
@@ -291,7 +311,8 @@ int main(void) {
   bytes[3] =
       RS_OFF_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK | low;
 
-  i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
+  // i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD,
+  // I2C_STOP);
   WAIT(FAST);
 
   uint8_t line2[] = "1234";
@@ -313,12 +334,12 @@ int main(void) {
     bytes[3] =
         low | RS_ON_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK;
 
-    if (i == len2 - 1)
-      i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD,
-                      I2C_STOP);
-    else
-      i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD,
-                      I2C_NO_STOP);
+    // if (i == len2 - 1)
+    //   i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD,
+    //                   I2C_STOP);
+    // else
+    //   i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD,
+    //                   I2C_NO_STOP);
   }
   for (;;) {
   }
