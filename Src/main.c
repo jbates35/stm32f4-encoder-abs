@@ -39,7 +39,12 @@ int _write(int le, char *ptr, int len) {
   return len;
 }
 
-void i2c_driver_setup();
+void i2c_dma_setup();
+
+/** Function to get the bytes required to be transmitted via I2C
+ * NOTE: Requires arr to be 4 elements
+ * **/
+void set_bytes_arr(uint8_t *arr, uint8_t rs, uint8_t word);
 
 #define I2C_GPIO_PORT GPIOB
 #define I2C_GPIO_SCL_PIN 8
@@ -156,113 +161,42 @@ void setup_main_sequence_dma(void) {
 // } lcd_package_t;
 //
 int main(void) {
-  i2c_driver_setup();
+  i2c_dma_setup();
   WAIT(SLOW);
   uint8_t bytes[4];
-  uint8_t upp, low;
 
   // Refer to page 39 of manual
   // Function set 4 bit (DB5 = 1, DB4=1, RS=0, RW=0)
   uint8_t fn_set_4b = LCD_FUNCTION_MASK | LCD_DISPLAY_TWO_LINES;
-  upp = 0xF0 & fn_set_4b;
-  low = 0xF0 & (fn_set_4b << 4);
 
-  bytes[0] =
-      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK | BACKLIGHT_ON_MASK | upp;
-
-  bytes[1] =
-      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK | upp;
-
-  bytes[2] =
-      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK | BACKLIGHT_ON_MASK | low;
-
-  bytes[3] =
-      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK | low;
-
+  set_bytes_arr(bytes, 0, fn_set_4b);
   i2c_master_send(I2C_PORT, bytes, 2, LCD_I2C_ADDR_VDD, I2C_STOP);
   WAIT(MEDIUM);
-
   i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
   WAIT(MEDIUM);
 
   // Display on (DB5-7 = 0, then DB5-7 = 1, RS/RW = 0)
   uint8_t disp_on =
       LCD_DISPLAY_CFG_MASK | LCD_DISPLAY_ON_MASK | LCD_CURSOR_ON_MASK;
-  upp = 0xF0 & disp_on;
-  low = 0xF0 & (disp_on << 4);
-
-  bytes[0] =
-      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK | BACKLIGHT_ON_MASK | upp;
-
-  bytes[1] =
-      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK | upp;
-
-  bytes[2] =
-      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK | BACKLIGHT_ON_MASK | low;
-
-  bytes[3] =
-      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK | low;
-
+  set_bytes_arr(bytes, 0, disp_on);
   i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
   WAIT(MEDIUM);
 
   // Entry mode set (DB5-7 = 0,  then DB5-6 = 1, RS/RW=0)
   uint8_t entry_mode_set = LCD_ENTRY_MODE_MASK | LCD_ENTRY_MODE_INC;
-  upp = 0XF0 & entry_mode_set;
-  low = 0XF0 & (entry_mode_set << 4);
-
-  bytes[0] =
-      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK | BACKLIGHT_ON_MASK | upp;
-
-  bytes[1] =
-      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK | upp;
-
-  bytes[2] =
-      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK | BACKLIGHT_ON_MASK | low;
-
-  bytes[3] =
-      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK | low;
-
+  set_bytes_arr(bytes, 0, entry_mode_set);
   i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
   WAIT(MEDIUM);
 
   // Clear screen
   uint8_t clear_screen = LCD_CLEAR_DISPLAY;
-  upp = 0XF0 & clear_screen;
-  low = 0XF0 & (clear_screen << 4);
-
-  bytes[0] =
-      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK | BACKLIGHT_ON_MASK | upp;
-
-  bytes[1] =
-      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK | upp;
-
-  bytes[2] =
-      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK | BACKLIGHT_ON_MASK | low;
-
-  bytes[3] =
-      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK | low;
-
+  set_bytes_arr(bytes, 0, clear_screen);
   i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
   WAIT(MEDIUM);
 
   // Return home
   uint8_t ret_home = LCD_RETURN_HOME;
-  upp = 0XF0 & ret_home;
-  low = 0XF0 & (ret_home << 4);
-
-  bytes[0] =
-      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK | BACKLIGHT_ON_MASK | upp;
-
-  bytes[1] =
-      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK | upp;
-
-  bytes[2] =
-      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK | BACKLIGHT_ON_MASK | low;
-
-  bytes[3] =
-      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK | low;
-
+  set_bytes_arr(bytes, 0, ret_home);
   i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
   WAIT(MEDIUM);
 
@@ -273,20 +207,8 @@ int main(void) {
   int len1 = SIZEOF(line1);
 
   for (int i = 0; i < 4; i++) {
-    upp = (0xF0 & line1[i]);
-    low = (0xF0 & (line1[i] << 4));
 
-    bytes[0] =
-        upp | RS_ON_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK | BACKLIGHT_ON_MASK;
-
-    bytes[1] =
-        upp | RS_ON_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK;
-
-    bytes[2] =
-        low | RS_ON_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK | BACKLIGHT_ON_MASK;
-
-    bytes[3] =
-        low | RS_ON_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK;
+    set_bytes_arr(bytes, 0, line1[i]);
 
     if (i == len1 - 1)
       i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD,
@@ -296,59 +218,41 @@ int main(void) {
                       I2C_NO_STOP);
   }
 
-  upp = 0XF0 & JUMP_SECOND_LINE;
-  low = 0XF0 & (JUMP_SECOND_LINE << 4);
-
-  bytes[0] =
-      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK | BACKLIGHT_ON_MASK | upp;
-
-  bytes[1] =
-      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK | upp;
-
-  bytes[2] =
-      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK | BACKLIGHT_ON_MASK | low;
-
-  bytes[3] =
-      RS_OFF_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK | low;
-
-  // i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD,
-  // I2C_STOP);
-  WAIT(FAST);
-
-  uint8_t line2[] = "1234";
-  int len2 = SIZEOF(line2);
-
-  for (int i = 0; i < 4; i++) {
-    upp = (0xF0 & line2[i]);
-    low = (0xF0 & (line2[i] << 4));
-
-    bytes[0] =
-        upp | RS_ON_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK | BACKLIGHT_ON_MASK;
-
-    bytes[1] =
-        upp | RS_ON_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK;
-
-    bytes[2] =
-        low | RS_ON_MASK | RW_WRITE_MASK | CLOCK_HIGH_MASK | BACKLIGHT_ON_MASK;
-
-    bytes[3] =
-        low | RS_ON_MASK | RW_WRITE_MASK | CLOCK_LOW_MASK | BACKLIGHT_ON_MASK;
-
-    // if (i == len2 - 1)
-    //   i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD,
-    //                   I2C_STOP);
-    // else
-    //   i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD,
-    //                   I2C_NO_STOP);
-  }
   for (;;) {
   }
 }
 
-void i2c_driver_setup() {
+/** Function to get the bytes required to be transmitted via I2C
+ * NOTE: Requires arr to be 4 elements
+ * **/
+void set_bytes_arr(uint8_t *arr, uint8_t rs, uint8_t word) {
+  uint8_t rs_mask = (rs == 1) ? RS_ON_MASK : RS_OFF_MASK;
+  uint8_t upp = (0xF0 & word);
+  uint8_t low = (0xF0 & (word << 4));
+
+  uint8_t clk_hi = CLOCK_HIGH_MASK | BACKLIGHT_ON_MASK;
+  uint8_t clk_lo = CLOCK_LOW_MASK | BACKLIGHT_ON_MASK;
+
+  arr[0] = upp | rs_mask | clk_hi;
+  arr[1] = upp | rs_mask | clk_lo;
+  arr[2] = low | rs_mask | clk_hi;
+  arr[3] = low | rs_mask | clk_lo;
+}
+
+void I2C_PORT_EV_IRQ_HANDLER(void) { i2c_dma_irq_handling_start(I2C_PORT); }
+
+void I2C_PORT_ERR_IRQ_HANDLER(void) {
+  I2CIRQType_t irq_error = i2c_irq_error_handling(I2C1);
+  if (irq_error == I2C_IRQ_TYPE_ERROR_ACKFAIL) {
+    printf("Error...\n");
+    i2c_start_interrupt_dma(I2C1);
+  }
+}
+
+void i2c_dma_setup() {
   GPIO_peri_clock_control(I2C_GPIO_PORT, GPIO_CLOCK_ENABLE);
   GPIOConfig_t default_gpio_cfg = {.mode = GPIO_MODE_ALTFN,
-                                   .speed = GPIO_SPEED_LOW,
+                                   .speed = GPIO_SPEED_MEDIUM,
                                    .float_resistor = GPIO_PUPDR_NONE,
                                    .output_type = GPIO_OP_TYPE_OPENDRAIN,
                                    .alt_func_num = 4};
@@ -363,11 +267,39 @@ void i2c_driver_setup() {
   i2c_scl_handle.cfg.pin_number = I2C_GPIO_SCL_PIN;
   GPIO_init(&i2c_scl_handle);
 
+  dma_peri_clock_control(I2C_DMA_TX_PORT, DMA_ENABLE);
+  DMAHandle_t dma_tx_handle = {
+      .stream_addr = I2C_DMA_TX_STREAM,
+      .cfg = {.in = {.addr = NULL,
+                     .type = DMA_IO_TYPE_MEMORY,
+                     .inc = DMA_IO_ARR_INCREMENT},
+              .out = {.addr = &I2C_PORT->DR,
+                      .type = DMA_IO_TYPE_PERIPHERAL,
+                      .inc = DMA_IO_ARR_STATIC},
+              .mem_data_size = DMA_DATA_SIZE_8_BIT,
+              .peri_data_size = DMA_DATA_SIZE_8_BIT,
+              .dma_elements = 0,
+              .channel = I2C_DMA_TX_CHANNEL,
+              .priority = DMA_PRIORITY_HIGH,
+              .circ_buffer = DMA_BUFFER_FINITE,
+              .flow_control = DMA_PERIPH_NO_FLOW_CONTROL,
+              .interrupt_en =
+                  {
+                      .direct_mode_error = DMA_DISABLE,
+                      .transfer_error = DMA_DISABLE,
+                      .full_transfer = DMA_ENABLE,
+                      .half_transfer = DMA_DISABLE,
+                  },
+              .start_enabled = DMA_DISABLE},
+  };
+  dma_stream_init(&dma_tx_handle);
+
   i2c_peri_clock_control(I2C_PORT, I2C_ENABLE);
   I2CHandle_t i2c_handle = {.addr = I2C_PORT,
                             .cfg = {.peri_clock_freq_hz = (uint32_t)16E6,
                                     .device_mode = I2C_DEVICE_MODE_MASTER,
                                     .scl_mode = I2C_SCL_MODE_SPEED_SM,
+                                    .interrupt_enable = I2C_ENABLE,
                                     .dma_enable = I2C_DISABLE,
                                     .enable_on_init = I2C_ENABLE}};
   i2c_init(&i2c_handle);
