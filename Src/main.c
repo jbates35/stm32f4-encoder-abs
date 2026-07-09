@@ -146,7 +146,7 @@ void setup_main_sequence_dma(void) {
 #define BACKLIGHT_ON_MASK 0x8
 #define BACKLIGHT_OFF_MASK 0
 
-#define JUMP_SECOND_LINE 0x30 // Used to set DDRAM to second line
+#define JUMP_SECOND_LINE 0xC0 // Used to set DDRAM to second line
 
 // END OF 1602 MACROS
 
