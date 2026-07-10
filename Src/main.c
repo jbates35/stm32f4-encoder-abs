@@ -46,6 +46,17 @@ void i2c_dma_setup();
  * **/
 void set_bytes_arr(uint8_t *arr, uint8_t rs, uint8_t word);
 
+typedef struct {
+  uint8_t buff[132];
+  int len;
+} lcd_lines_t;
+
+lcd_lines_t lcd_lines;
+uint8_t ret_home[4];
+
+void setup_lcd_chars_xmission(void);
+void setup_lcd_ret_home_xmission(void);
+
 #define I2C_GPIO_PORT GPIOB
 #define I2C_GPIO_SCL_PIN 8
 #define I2C_GPIO_SDA_PIN 9
@@ -171,34 +182,28 @@ int main(void) {
 
   set_bytes_arr(bytes, 0, fn_set_4b);
   i2c_master_send(I2C_PORT, bytes, 2, LCD_I2C_ADDR_VDD, I2C_STOP);
-  WAIT(MEDIUM);
+  WAIT(FAST);
   i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
-  WAIT(MEDIUM);
+  WAIT(FAST);
 
   // Display on (DB5-7 = 0, then DB5-7 = 1, RS/RW = 0)
   uint8_t disp_on =
       LCD_DISPLAY_CFG_MASK | LCD_DISPLAY_ON_MASK | LCD_CURSOR_ON_MASK;
   set_bytes_arr(bytes, 0, disp_on);
   i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
-  WAIT(MEDIUM);
+  WAIT(FAST);
 
   // Entry mode set (DB5-7 = 0,  then DB5-6 = 1, RS/RW=0)
   uint8_t entry_mode_set = LCD_ENTRY_MODE_MASK | LCD_ENTRY_MODE_INC;
   set_bytes_arr(bytes, 0, entry_mode_set);
   i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
-  WAIT(MEDIUM);
+  WAIT(FAST);
 
   // Clear screen
   uint8_t clear_screen = LCD_CLEAR_DISPLAY;
   set_bytes_arr(bytes, 0, clear_screen);
   i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
-  WAIT(MEDIUM);
-
-  // Return home
-  uint8_t ret_home = LCD_RETURN_HOME;
-  set_bytes_arr(bytes, 0, ret_home);
-  i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
-  WAIT(MEDIUM);
+  WAIT(SLOW);
 
   // Set DDRAM
 
@@ -208,7 +213,7 @@ int main(void) {
 
   for (int i = 0; i < 4; i++) {
 
-    set_bytes_arr(bytes, 0, line1[i]);
+    set_bytes_arr(bytes, 1, line1[i]);
 
     if (i == len1 - 1)
       i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD,
@@ -217,6 +222,10 @@ int main(void) {
       i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD,
                       I2C_NO_STOP);
   }
+
+  NVIC_EnableIRQ(I2C_DMA_TX_STREAM_IRQN);
+  NVIC_EnableIRQ(I2C_PORT_EV_IRQN);
+  NVIC_EnableIRQ(I2C_PORT_ERR_IRQN);
 
   for (;;) {
   }
@@ -303,4 +312,30 @@ void i2c_dma_setup() {
                                     .dma_enable = I2C_DISABLE,
                                     .enable_on_init = I2C_ENABLE}};
   i2c_init(&i2c_handle);
+}
+
+void setup_lcd_chars_xmission(void) {
+  I2CDMAConfig_t dma_config = {
+      .address = LCD_I2C_ADDR_VDD,
+      .tx = {.buff = lcd_lines.buff, .len = lcd_lines.len},
+      .rx = {.buff = NULL, .len = 0},
+      .tx_stream = I2C_DMA_TX_STREAM,
+      .dma_set_buffer_cb = dma_set_buffer,
+      .dma_start_transfer_cb = dma_start_transfer,
+      .circular = I2C_INTERRUPT_NON_CIRCULAR,
+      .callback = NULL};
+  i2c_setup_interrupt_dma(I2C_PORT, &dma_config);
+}
+
+void setup_lcd_ret_home_xmission(void) {
+  I2CDMAConfig_t dma_config = {
+      .address = LCD_I2C_ADDR_VDD,
+      .tx = {.buff = ret_home, .len = SIZEOF(ret_home)},
+      .rx = {.buff = NULL, .len = 0},
+      .tx_stream = I2C_DMA_TX_STREAM,
+      .dma_set_buffer_cb = dma_set_buffer,
+      .dma_start_transfer_cb = dma_start_transfer,
+      .circular = I2C_INTERRUPT_NON_CIRCULAR,
+      .callback = NULL};
+  i2c_setup_interrupt_dma(I2C_PORT, &dma_config);
 }
