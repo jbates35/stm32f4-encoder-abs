@@ -3,3 +3,4 @@ build
 .vscode
 cmake
 old_mains
+compile_commands.json
