@@ -56,6 +56,7 @@ uint8_t ret_home[4];
 
 void setup_lcd_chars_xmission(void);
 void setup_lcd_ret_home_xmission(void);
+void convert_uint32_to_str(void *arr, int capacity, uint32_t num);
 
 #define I2C_GPIO_PORT GPIOB
 #define I2C_GPIO_SCL_PIN 8
@@ -246,6 +247,25 @@ void set_bytes_arr(uint8_t *arr, uint8_t rs, uint8_t word) {
   arr[1] = upp | rs_mask | clk_lo;
   arr[2] = low | rs_mask | clk_hi;
   arr[3] = low | rs_mask | clk_lo;
+}
+
+void convert_uint32_to_str(void *arr, int capacity, uint32_t num) {
+  int lsd_index = 10;
+  if (capacity < 10)
+    lsd_index = capacity; // max uint32_t number has 10 digits
+
+  while (lsd_index > 0) {
+    const int i = lsd_index - 1;
+
+    if (num > 0 || lsd_index == capacity) {
+      ((uint8_t *)arr)[i] = '0' + (num % 10);
+      num = num / 10;
+    } else {
+      ((uint8_t *)arr)[i] = ' ';
+    }
+
+    lsd_index--;
+  }
 }
 
 void I2C_PORT_EV_IRQ_HANDLER(void) { i2c_dma_irq_handling_start(I2C_PORT); }
