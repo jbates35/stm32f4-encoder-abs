@@ -165,11 +165,6 @@ void setup_lcd_ret_home_xmission(void);
 void convert_uint32_to_str(void* arr, int capacity, uint32_t num);
 void i2c_dma_setup();
 
-// typedef struct {
-//   uint8_t byte;
-//   int wait_length;
-// } lcd_package_t;
-//
 int main(void) {
   i2c_dma_setup();
   WAIT(SLOW);
