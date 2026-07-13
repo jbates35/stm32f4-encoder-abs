@@ -162,7 +162,7 @@ int enc_cnt = 0;
  * **/
 void set_bytes_arr(uint8_t* arr, const lcd_rs_type_t rs, const uint8_t word);
 void setup_lcd_chars_xmission(void);
-void setup_lcd_ret_home_xmission(void);
+void setup_lcd_clr_scr_xmission(void);
 void convert_uint32_to_str(void* arr, int capacity, uint32_t num);
 void set_lcd_str(lcd_lines_t* lcd_lines, const void* buff1, int len1, const void* buff2, int len2);
 
@@ -209,12 +209,14 @@ int main(void) {
   convert_uint32_to_str(str2, 16, enc_cnt);
   const int len2 = 16;
 
-  set_lcd_str(&lcd_lines, str1, len1, str2, len2);
-  i2c_master_send(I2C_PORT, lcd_lines.buff, lcd_lines.len, LCD_I2C_ADDR_VDD, I2C_STOP);
+  NVIC_EnableIRQ(I2C_DMA_TX_STREAM_IRQN);
+  NVIC_EnableIRQ(I2C_PORT_EV_IRQN);
+  NVIC_EnableIRQ(I2C_PORT_ERR_IRQN);
 
-  // NVIC_EnableIRQ(I2C_DMA_TX_STREAM_IRQN);
-  // NVIC_EnableIRQ(I2C_PORT_EV_IRQN);
-  // NVIC_EnableIRQ(I2C_PORT_ERR_IRQN);
+  set_lcd_str(&lcd_lines, str1, len1, str2, len2);
+  setup_lcd_chars_xmission();
+  i2c_start_interrupt_dma(I2C_PORT);
+
   for (;;) {
   }
 }
@@ -222,11 +224,16 @@ int main(void) {
 void I2C_PORT_EV_IRQ_HANDLER(void) { i2c_dma_irq_handling_start(I2C_PORT); }
 
 void I2C_PORT_ERR_IRQ_HANDLER(void) {
-  I2CIRQType_t irq_error = i2c_irq_error_handling(I2C1);
+  I2CIRQType_t irq_error = i2c_irq_error_handling(I2C_PORT);
   if (irq_error == I2C_IRQ_TYPE_ERROR_ACKFAIL) {
     printf("Error...\n");
-    i2c_start_interrupt_dma(I2C1);
+    i2c_start_interrupt_dma(I2C_PORT);
   }
+}
+
+void I2C_DMA_TX_STREAM_IRQ_HANDLER(void) {
+  if (dma_irq_handling(I2C_DMA_TX_STREAM, DMA_INTERRUPT_TYPE_FULL_TRANSFER_COMPLETE))
+    i2c_dma_irq_handling_end(I2C_PORT, I2C_TXRX_DIR_SEND);
 }
 
 /* NOTE: START OF LCD FUNCTIONS */
@@ -355,7 +362,7 @@ void setup_lcd_chars_xmission(void) {
   i2c_setup_interrupt_dma(I2C_PORT, &dma_config);
 }
 
-void setup_lcd_ret_home_xmission(void) {
+void setup_lcd_clr_scr_xmission(void) {
   I2CDMAConfig_t dma_config = {.address = LCD_I2C_ADDR_VDD,
                                .tx = {.buff = clr_scr, .len = SIZEOF(clr_scr)},
                                .rx = {.buff = NULL, .len = 0},
