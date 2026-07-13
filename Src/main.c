@@ -39,25 +39,6 @@ int _write(int le, char *ptr, int len) {
   return len;
 }
 
-void i2c_dma_setup();
-
-/** Function to get the bytes required to be transmitted via I2C
- * NOTE: Requires arr to be 4 elements
- * **/
-void set_bytes_arr(uint8_t *arr, uint8_t rs, uint8_t word);
-
-typedef struct {
-  uint8_t buff[132];
-  int len;
-} lcd_lines_t;
-
-lcd_lines_t lcd_lines;
-uint8_t ret_home[4];
-
-void setup_lcd_chars_xmission(void);
-void setup_lcd_ret_home_xmission(void);
-void convert_uint32_to_str(void *arr, int capacity, uint32_t num);
-
 #define I2C_GPIO_PORT GPIOB
 #define I2C_GPIO_SCL_PIN 8
 #define I2C_GPIO_SDA_PIN 9
@@ -165,7 +146,24 @@ void setup_main_sequence_dma(void) {
 
 #define JUMP_SECOND_LINE 0xC0 // Used to set DDRAM to second line
 
-// END OF 1602 MACROS
+typedef enum { RS_INST_WR = 0, RS_DDR_WR = 1 } rs_type_t;
+
+typedef struct {
+  uint8_t buff[132];
+  int len;
+} lcd_lines_t;
+
+lcd_lines_t lcd_lines;
+uint8_t clr_home[4];
+
+/** Function to get the bytes required to be transmitted via I2C
+ * NOTE: Requires arr to be 4 elements
+ * **/
+void set_bytes_arr(uint8_t* arr, rs_type_t rs, uint8_t word);
+void setup_lcd_chars_xmission(void);
+void setup_lcd_ret_home_xmission(void);
+void convert_uint32_to_str(void* arr, int capacity, uint32_t num);
+void i2c_dma_setup();
 
 // typedef struct {
 //   uint8_t byte;
