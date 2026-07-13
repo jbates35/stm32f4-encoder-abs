@@ -144,7 +144,7 @@ void setup_main_sequence_dma(void) {
 
 #define LCD_JUMP_SECOND_LINE 0xC0  // Used to set DDRAM to second line
 
-typedef enum { RS_INST_WR = 0, RS_DDR_WR = 1 } rs_type_t;
+typedef enum { LCD_RS_INST_WR = 0, LCD_RS_DDR_WR = 1 } lcd_rs_type_t;
 
 typedef struct {
   uint8_t buff[132];
@@ -157,14 +157,14 @@ uint8_t clr_home[4];
 /** Function to get the bytes required to be transmitted via I2C
  * NOTE: Requires arr to be 4 elements
  * **/
-void set_bytes_arr(uint8_t* arr, rs_type_t rs, uint8_t word);
+void set_bytes_arr(uint8_t* arr, lcd_rs_type_t rs, uint8_t word);
 void setup_lcd_chars_xmission(void);
 void setup_lcd_ret_home_xmission(void);
 void convert_uint32_to_str(void* arr, int capacity, uint32_t num);
 void i2c_dma_setup();
 
 int main(void) {
-  set_bytes_arr(clr_home, RS_INST_WR, LCD_CLEAR_DISPLAY);
+  set_bytes_arr(clr_home, LCD_RS_INST_WR, LCD_CLEAR_DISPLAY);
 
   i2c_dma_setup();
   WAIT(SLOW);
@@ -174,7 +174,7 @@ int main(void) {
   // Function set 4 bit (DB5 = 1, DB4=1, RS=0, RW=0)
   uint8_t fn_set_4b = LCD_FUNCTION_MASK | LCD_DISPLAY_TWO_LINES;
 
-  set_bytes_arr(bytes, RS_INST_WR, fn_set_4b);
+  set_bytes_arr(bytes, LCD_RS_INST_WR, fn_set_4b);
   i2c_master_send(I2C_PORT, bytes, 2, LCD_I2C_ADDR_VDD, I2C_STOP);
   WAIT(FAST);
   i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
@@ -182,19 +182,19 @@ int main(void) {
 
   // Display on (DB5-7 = 0, then DB5-7 = 1, RS/RW = 0)
   uint8_t disp_on = LCD_DISPLAY_CFG_MASK | LCD_DISPLAY_ON_MASK | LCD_CURSOR_ON_MASK;
-  set_bytes_arr(bytes, RS_INST_WR, disp_on);
+  set_bytes_arr(bytes, LCD_RS_INST_WR, disp_on);
   i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
   WAIT(FAST);
 
   // Entry mode set (DB5-7 = 0,  then DB5-6 = 1, RS/RW=0)
   uint8_t entry_mode_set = LCD_ENTRY_MODE_MASK | LCD_ENTRY_MODE_INC;
-  set_bytes_arr(bytes, RS_INST_WR, entry_mode_set);
+  set_bytes_arr(bytes, LCD_RS_INST_WR, entry_mode_set);
   i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
   WAIT(FAST);
 
   // Clear screen
   uint8_t clear_screen = LCD_CLEAR_DISPLAY;
-  set_bytes_arr(bytes, RS_INST_WR, clear_screen);
+  set_bytes_arr(bytes, LCD_RS_INST_WR, clear_screen);
   i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
   WAIT(MEDIUM);
 
@@ -203,7 +203,7 @@ int main(void) {
   int len1 = SIZEOF(line1);
 
   for (int i = 0; i < 4; i++) {
-    set_bytes_arr(bytes, RS_DDR_WR, line1[i]);
+    set_bytes_arr(bytes, LCD_RS_DDR_WR, line1[i]);
 
     if (i == len1 - 1)
       i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
@@ -222,8 +222,8 @@ int main(void) {
 /** Function to get the bytes required to be transmitted via I2C
  * NOTE: Requires arr to be 4 elements
  * **/
-void set_bytes_arr(uint8_t* arr, rs_type_t rs, uint8_t word) {
-  uint8_t rs_mask = (rs == RS_DDR_WR) ? LCD_RS_ON_MASK : LCD_RS_OFF_MASK;
+void set_bytes_arr(uint8_t* arr, lcd_rs_type_t rs, uint8_t word) {
+  uint8_t rs_mask = (rs == LCD_RS_DDR_WR) ? LCD_RS_ON_MASK : LCD_RS_OFF_MASK;
   uint8_t upp = (0xF0 & word);
   uint8_t low = (0xF0 & (word << 4));
 
