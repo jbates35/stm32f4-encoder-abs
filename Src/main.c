@@ -152,19 +152,24 @@ typedef struct {
 } lcd_lines_t;
 
 lcd_lines_t lcd_lines;
-uint8_t clr_home[4];
+uint8_t clr_scr[4];
+
+// NOTE: temp cnt
+int enc_cnt = 0;
 
 /** Function to get the bytes required to be transmitted via I2C
  * NOTE: Requires arr to be 4 elements
  * **/
-void set_bytes_arr(uint8_t* arr, lcd_rs_type_t rs, uint8_t word);
+void set_bytes_arr(uint8_t* arr, const lcd_rs_type_t rs, const uint8_t word);
 void setup_lcd_chars_xmission(void);
 void setup_lcd_ret_home_xmission(void);
 void convert_uint32_to_str(void* arr, int capacity, uint32_t num);
+void set_lcd_str(lcd_lines_t* lcd_lines, const void* buff1, int len1, const void* buff2, int len2);
+
 void i2c_dma_setup();
 
 int main(void) {
-  set_bytes_arr(clr_home, LCD_RS_INST_WR, LCD_CLEAR_DISPLAY);
+  set_bytes_arr(clr_scr, LCD_RS_INST_WR, LCD_CLEAR_DISPLAY);
 
   i2c_dma_setup();
   WAIT(SLOW);
@@ -193,36 +198,56 @@ int main(void) {
   WAIT(FAST);
 
   // Clear screen
-  uint8_t clear_screen = LCD_CLEAR_DISPLAY;
-  set_bytes_arr(bytes, LCD_RS_INST_WR, clear_screen);
-  i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
-  WAIT(MEDIUM);
+  i2c_master_send(I2C_PORT, clr_scr, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
+  WAIT(SLOW);
 
-  // Write data to CGRAM//DDRAM (RS = 1, RW = 0, )
-  uint8_t line1[] = "asdf";
-  int len1 = SIZEOF(line1);
+  // Get encoder strings
+  const char str1[] = "Encoder cnt";
+  const int len1 = SIZEOF(str1) - 1;
+  char str2[16];
+  convert_uint32_to_str(str2, 16, enc_cnt);
+  const int len2 = 16;
 
-  for (int i = 0; i < 4; i++) {
-    set_bytes_arr(bytes, LCD_RS_DDR_WR, line1[i]);
+  set_lcd_str(&lcd_lines, str1, len1, str2, len2);
 
-    if (i == len1 - 1)
+  for (int i = 0; i < lcd_lines.len; i += 4) {
+    bytes[0] = lcd_lines.buff[i + 0];
+    bytes[1] = lcd_lines.buff[i + 1];
+    bytes[2] = lcd_lines.buff[i + 2];
+    bytes[3] = lcd_lines.buff[i + 3];
+
+    if (i == lcd_lines.len - 1)
       i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
     else
       i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_NO_STOP);
   }
 
+  // set_lcd_str(&lcd_lines, str1, len1, str2, len2);
+  // i2c_master_send(I2C_PORT, lcd_lines.buff, lcd_lines.len, LCD_I2C_ADDR_VDD, I2C_STOP);
+
   // NVIC_EnableIRQ(I2C_DMA_TX_STREAM_IRQN);
   // NVIC_EnableIRQ(I2C_PORT_EV_IRQN);
   // NVIC_EnableIRQ(I2C_PORT_ERR_IRQN);
-
   for (;;) {
   }
 }
 
+void I2C_PORT_EV_IRQ_HANDLER(void) { i2c_dma_irq_handling_start(I2C_PORT); }
+
+void I2C_PORT_ERR_IRQ_HANDLER(void) {
+  I2CIRQType_t irq_error = i2c_irq_error_handling(I2C1);
+  if (irq_error == I2C_IRQ_TYPE_ERROR_ACKFAIL) {
+    printf("Error...\n");
+    i2c_start_interrupt_dma(I2C1);
+  }
+}
+
+/* NOTE: START OF LCD FUNCTIONS */
+
 /** Function to get the bytes required to be transmitted via I2C
  * NOTE: Requires arr to be 4 elements
  * **/
-void set_bytes_arr(uint8_t* arr, lcd_rs_type_t rs, uint8_t word) {
+void set_bytes_arr(uint8_t* arr, const lcd_rs_type_t rs, const uint8_t word) {
   uint8_t rs_mask = (rs == LCD_RS_DDR_WR) ? LCD_RS_ON_MASK : LCD_RS_OFF_MASK;
   uint8_t upp = (0xF0 & word);
   uint8_t low = (0xF0 & (word << 4));
@@ -236,32 +261,49 @@ void set_bytes_arr(uint8_t* arr, lcd_rs_type_t rs, uint8_t word) {
   arr[3] = low | rs_mask | clk_lo;
 }
 
-void convert_uint32_to_str(void* arr, int capacity, uint32_t num) {
-  int lsd_index = 10;
-  if (capacity < 10) lsd_index = capacity;  // max uint32_t number has 10 digits
+void convert_uint32_to_str(void* arr, int len, uint32_t num) {
+  if (len > 16) len = 16;
+  for (int i = 0; i < len; i++) ((uint8_t*)arr)[i] = ' ';
 
-  while (lsd_index > 0) {
-    const int i = lsd_index - 1;
+  if (num == 0) {
+    ((uint8_t*)arr)[len - 1] = '0';
+    return;
+  }
 
-    if (num > 0 || lsd_index == capacity) {
+  while (num > 0 && len > 0) {
+    const int i = len - 1;
+
+    if (num > 0 && len > 0) {
       ((uint8_t*)arr)[i] = '0' + (num % 10);
       num = num / 10;
     } else {
       ((uint8_t*)arr)[i] = ' ';
     }
 
-    lsd_index--;
+    len--;
   }
 }
 
-void I2C_PORT_EV_IRQ_HANDLER(void) { i2c_dma_irq_handling_start(I2C_PORT); }
+void set_lcd_str(lcd_lines_t* lcd_lines, const void* buff1, int len1, const void* buff2, int len2) {
+  int buff_cnt = 0;
 
-void I2C_PORT_ERR_IRQ_HANDLER(void) {
-  I2CIRQType_t irq_error = i2c_irq_error_handling(I2C1);
-  if (irq_error == I2C_IRQ_TYPE_ERROR_ACKFAIL) {
-    printf("Error...\n");
-    i2c_start_interrupt_dma(I2C1);
+  len1 = (len1 > 16) ? 16 : len1;
+  len2 = (len2 > 16) ? 16 : len2;
+
+  for (int i = 0; i < len1; i++) {
+    set_bytes_arr(lcd_lines->buff + buff_cnt, LCD_RS_DDR_WR, ((uint8_t*)buff1)[i]);
+    buff_cnt += 4;
   }
+
+  set_bytes_arr(lcd_lines->buff + buff_cnt, LCD_RS_INST_WR, LCD_JUMP_SECOND_LINE);
+  buff_cnt += 4;
+
+  for (int i = 0; i < len2; i++) {
+    set_bytes_arr(lcd_lines->buff + buff_cnt, LCD_RS_DDR_WR, ((uint8_t*)buff2)[i]);
+    buff_cnt += 4;
+  }
+
+  lcd_lines->len = buff_cnt;
 }
 
 void i2c_dma_setup() {
@@ -328,7 +370,7 @@ void setup_lcd_chars_xmission(void) {
 
 void setup_lcd_ret_home_xmission(void) {
   I2CDMAConfig_t dma_config = {.address = LCD_I2C_ADDR_VDD,
-                               .tx = {.buff = clr_home, .len = SIZEOF(clr_home)},
+                               .tx = {.buff = clr_scr, .len = SIZEOF(clr_scr)},
                                .rx = {.buff = NULL, .len = 0},
                                .tx_stream = I2C_DMA_TX_STREAM,
                                .dma_set_buffer_cb = dma_set_buffer,
