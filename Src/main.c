@@ -171,6 +171,7 @@ void i2c_dma_setup();
 int main(void) {
   set_bytes_arr(clr_scr, LCD_RS_INST_WR, LCD_CLEAR_DISPLAY);
 
+  WAIT(SLOW);
   i2c_dma_setup();
   WAIT(SLOW);
   uint8_t bytes[4];
@@ -195,7 +196,7 @@ int main(void) {
   uint8_t entry_mode_set = LCD_ENTRY_MODE_MASK | LCD_ENTRY_MODE_INC;
   set_bytes_arr(bytes, LCD_RS_INST_WR, entry_mode_set);
   i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
-  WAIT(FAST);
+  WAIT(MEDIUM);
 
   // Clear screen
   i2c_master_send(I2C_PORT, clr_scr, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
@@ -209,21 +210,7 @@ int main(void) {
   const int len2 = 16;
 
   set_lcd_str(&lcd_lines, str1, len1, str2, len2);
-
-  for (int i = 0; i < lcd_lines.len; i += 4) {
-    bytes[0] = lcd_lines.buff[i + 0];
-    bytes[1] = lcd_lines.buff[i + 1];
-    bytes[2] = lcd_lines.buff[i + 2];
-    bytes[3] = lcd_lines.buff[i + 3];
-
-    if (i == lcd_lines.len - 1)
-      i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
-    else
-      i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_NO_STOP);
-  }
-
-  // set_lcd_str(&lcd_lines, str1, len1, str2, len2);
-  // i2c_master_send(I2C_PORT, lcd_lines.buff, lcd_lines.len, LCD_I2C_ADDR_VDD, I2C_STOP);
+  i2c_master_send(I2C_PORT, lcd_lines.buff, lcd_lines.len, LCD_I2C_ADDR_VDD, I2C_STOP);
 
   // NVIC_EnableIRQ(I2C_DMA_TX_STREAM_IRQN);
   // NVIC_EnableIRQ(I2C_PORT_EV_IRQN);
