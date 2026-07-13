@@ -27,11 +27,10 @@
 #include "stm32f446xx_tim.h"
 
 #if !defined(__SOFT_FP__) && defined(__ARM_FP)
-#warning                                                                       \
-    "FPU is not initialized, but the project is compiling for an FPU. Please initialize the FPU before use."
+#warning "FPU is not initialized, but the project is compiling for an FPU. Please initialize the FPU before use."
 #endif
 
-int _write(int le, char *ptr, int len) {
+int _write(int le, char* ptr, int len) {
   int DataIdx;
   for (DataIdx = 0; DataIdx < len; DataIdx++) {
     ITM_SendChar(*ptr++);
@@ -67,10 +66,9 @@ int _write(int le, char *ptr, int len) {
 #define FAST 10000
 #define MEDIUM 300000
 #define SLOW 1000000
-#define WAIT(CNT)                                                              \
-  do {                                                                         \
-    for (int sleep_cnt = 0; sleep_cnt < CNT; sleep_cnt++)                      \
-      ;                                                                        \
+#define WAIT(CNT)                                          \
+  do {                                                     \
+    for (int sleep_cnt = 0; sleep_cnt < CNT; sleep_cnt++); \
   } while (0)
 
 /*
@@ -100,11 +98,11 @@ void setup_main_sequence_dma(void) {
 */
 
 // START OF 1602 I2C MACROS
-#define LCD_I2C_ADDR_VDD 0x27 // When A0/1/2 are all HIGH
+#define LCD_I2C_ADDR_VDD 0x27  // When A0/1/2 are all HIGH
 
 // START OF 1602 LCD MACROS
 // NOTE: Following two commands require 1520ms
-#define LCD_CLEAR_DISPLAY 0x1 // CLears entire display
+#define LCD_CLEAR_DISPLAY 0x1  // CLears entire display
 #define LCD_RETURN_HOME 0x2
 
 // NOTE: Rest of commands require 37us
@@ -132,19 +130,19 @@ void setup_main_sequence_dma(void) {
 #define LCD_SET_CGRAM_ADDR_MASK 0x40
 #define LCD_SET_DDRAM_ADDR_MASK 0x80
 
-#define RS_OFF_MASK 0x0
-#define RS_ON_MASK 0x1
+#define LCD_RS_OFF_MASK 0x0
+#define LCD_RS_ON_MASK 0x1
 
-#define RW_WRITE_MASK 0x0
-#define RW_READ_MASK 0x2
+#define LCD_RW_WRITE_MASK 0x0
+#define LCD_RW_READ_MASK 0x2
 
-#define CLOCK_HIGH_MASK 0x4
-#define CLOCK_LOW_MASK 0
+#define LCD_CLOCK_HIGH_MASK 0x4
+#define LCD_CLOCK_LOW_MASK 0
 
-#define BACKLIGHT_ON_MASK 0x8
-#define BACKLIGHT_OFF_MASK 0
+#define LCD_BACKLIGHT_ON_MASK 0x8
+#define LCD_BACKLIGHT_OFF_MASK 0
 
-#define JUMP_SECOND_LINE 0xC0 // Used to set DDRAM to second line
+#define LCD_JUMP_SECOND_LINE 0xC0  // Used to set DDRAM to second line
 
 typedef enum { RS_INST_WR = 0, RS_DDR_WR = 1 } rs_type_t;
 
@@ -166,6 +164,8 @@ void convert_uint32_to_str(void* arr, int capacity, uint32_t num);
 void i2c_dma_setup();
 
 int main(void) {
+  set_bytes_arr(clr_home, RS_INST_WR, LCD_CLEAR_DISPLAY);
+
   i2c_dma_setup();
   WAIT(SLOW);
   uint8_t bytes[4];
@@ -174,47 +174,41 @@ int main(void) {
   // Function set 4 bit (DB5 = 1, DB4=1, RS=0, RW=0)
   uint8_t fn_set_4b = LCD_FUNCTION_MASK | LCD_DISPLAY_TWO_LINES;
 
-  set_bytes_arr(bytes, 0, fn_set_4b);
+  set_bytes_arr(bytes, RS_INST_WR, fn_set_4b);
   i2c_master_send(I2C_PORT, bytes, 2, LCD_I2C_ADDR_VDD, I2C_STOP);
   WAIT(FAST);
   i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
   WAIT(FAST);
 
   // Display on (DB5-7 = 0, then DB5-7 = 1, RS/RW = 0)
-  uint8_t disp_on =
-      LCD_DISPLAY_CFG_MASK | LCD_DISPLAY_ON_MASK | LCD_CURSOR_ON_MASK;
-  set_bytes_arr(bytes, 0, disp_on);
+  uint8_t disp_on = LCD_DISPLAY_CFG_MASK | LCD_DISPLAY_ON_MASK | LCD_CURSOR_ON_MASK;
+  set_bytes_arr(bytes, RS_INST_WR, disp_on);
   i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
   WAIT(FAST);
 
   // Entry mode set (DB5-7 = 0,  then DB5-6 = 1, RS/RW=0)
   uint8_t entry_mode_set = LCD_ENTRY_MODE_MASK | LCD_ENTRY_MODE_INC;
-  set_bytes_arr(bytes, 0, entry_mode_set);
+  set_bytes_arr(bytes, RS_INST_WR, entry_mode_set);
   i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
   WAIT(FAST);
 
   // Clear screen
   uint8_t clear_screen = LCD_CLEAR_DISPLAY;
-  set_bytes_arr(bytes, 0, clear_screen);
+  set_bytes_arr(bytes, RS_INST_WR, clear_screen);
   i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
-  WAIT(SLOW);
-
-  // Set DDRAM
+  WAIT(MEDIUM);
 
   // Write data to CGRAM//DDRAM (RS = 1, RW = 0, )
   uint8_t line1[] = "asdf";
   int len1 = SIZEOF(line1);
 
   for (int i = 0; i < 4; i++) {
-
-    set_bytes_arr(bytes, 1, line1[i]);
+    set_bytes_arr(bytes, RS_DDR_WR, line1[i]);
 
     if (i == len1 - 1)
-      i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD,
-                      I2C_STOP);
+      i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
     else
-      i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD,
-                      I2C_NO_STOP);
+      i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_NO_STOP);
   }
 
   NVIC_EnableIRQ(I2C_DMA_TX_STREAM_IRQN);
@@ -228,13 +222,13 @@ int main(void) {
 /** Function to get the bytes required to be transmitted via I2C
  * NOTE: Requires arr to be 4 elements
  * **/
-void set_bytes_arr(uint8_t *arr, uint8_t rs, uint8_t word) {
-  uint8_t rs_mask = (rs == 1) ? RS_ON_MASK : RS_OFF_MASK;
+void set_bytes_arr(uint8_t* arr, rs_type_t rs, uint8_t word) {
+  uint8_t rs_mask = (rs == RS_DDR_WR) ? LCD_RS_ON_MASK : LCD_RS_OFF_MASK;
   uint8_t upp = (0xF0 & word);
   uint8_t low = (0xF0 & (word << 4));
 
-  uint8_t clk_hi = CLOCK_HIGH_MASK | BACKLIGHT_ON_MASK;
-  uint8_t clk_lo = CLOCK_LOW_MASK | BACKLIGHT_ON_MASK;
+  uint8_t clk_hi = LCD_CLOCK_HIGH_MASK | LCD_BACKLIGHT_ON_MASK;
+  uint8_t clk_lo = LCD_CLOCK_LOW_MASK | LCD_BACKLIGHT_ON_MASK;
 
   arr[0] = upp | rs_mask | clk_hi;
   arr[1] = upp | rs_mask | clk_lo;
@@ -242,19 +236,18 @@ void set_bytes_arr(uint8_t *arr, uint8_t rs, uint8_t word) {
   arr[3] = low | rs_mask | clk_lo;
 }
 
-void convert_uint32_to_str(void *arr, int capacity, uint32_t num) {
+void convert_uint32_to_str(void* arr, int capacity, uint32_t num) {
   int lsd_index = 10;
-  if (capacity < 10)
-    lsd_index = capacity; // max uint32_t number has 10 digits
+  if (capacity < 10) lsd_index = capacity;  // max uint32_t number has 10 digits
 
   while (lsd_index > 0) {
     const int i = lsd_index - 1;
 
     if (num > 0 || lsd_index == capacity) {
-      ((uint8_t *)arr)[i] = '0' + (num % 10);
+      ((uint8_t*)arr)[i] = '0' + (num % 10);
       num = num / 10;
     } else {
-      ((uint8_t *)arr)[i] = ' ';
+      ((uint8_t*)arr)[i] = ' ';
     }
 
     lsd_index--;
@@ -279,25 +272,19 @@ void i2c_dma_setup() {
                                    .output_type = GPIO_OP_TYPE_OPENDRAIN,
                                    .alt_func_num = 4};
 
-  GPIOHandle_t i2c_sda_handle = {.p_GPIO_addr = I2C_GPIO_PORT,
-                                 .cfg = default_gpio_cfg};
+  GPIOHandle_t i2c_sda_handle = {.p_GPIO_addr = I2C_GPIO_PORT, .cfg = default_gpio_cfg};
   i2c_sda_handle.cfg.pin_number = I2C_GPIO_SDA_PIN;
   GPIO_init(&i2c_sda_handle);
 
-  GPIOHandle_t i2c_scl_handle = {.p_GPIO_addr = I2C_GPIO_PORT,
-                                 .cfg = default_gpio_cfg};
+  GPIOHandle_t i2c_scl_handle = {.p_GPIO_addr = I2C_GPIO_PORT, .cfg = default_gpio_cfg};
   i2c_scl_handle.cfg.pin_number = I2C_GPIO_SCL_PIN;
   GPIO_init(&i2c_scl_handle);
 
   dma_peri_clock_control(I2C_DMA_TX_PORT, DMA_ENABLE);
   DMAHandle_t dma_tx_handle = {
       .stream_addr = I2C_DMA_TX_STREAM,
-      .cfg = {.in = {.addr = NULL,
-                     .type = DMA_IO_TYPE_MEMORY,
-                     .inc = DMA_IO_ARR_INCREMENT},
-              .out = {.addr = &I2C_PORT->DR,
-                      .type = DMA_IO_TYPE_PERIPHERAL,
-                      .inc = DMA_IO_ARR_STATIC},
+      .cfg = {.in = {.addr = NULL, .type = DMA_IO_TYPE_MEMORY, .inc = DMA_IO_ARR_INCREMENT},
+              .out = {.addr = &I2C_PORT->DR, .type = DMA_IO_TYPE_PERIPHERAL, .inc = DMA_IO_ARR_STATIC},
               .mem_data_size = DMA_DATA_SIZE_8_BIT,
               .peri_data_size = DMA_DATA_SIZE_8_BIT,
               .dma_elements = 0,
@@ -328,27 +315,25 @@ void i2c_dma_setup() {
 }
 
 void setup_lcd_chars_xmission(void) {
-  I2CDMAConfig_t dma_config = {
-      .address = LCD_I2C_ADDR_VDD,
-      .tx = {.buff = lcd_lines.buff, .len = lcd_lines.len},
-      .rx = {.buff = NULL, .len = 0},
-      .tx_stream = I2C_DMA_TX_STREAM,
-      .dma_set_buffer_cb = dma_set_buffer,
-      .dma_start_transfer_cb = dma_start_transfer,
-      .circular = I2C_INTERRUPT_NON_CIRCULAR,
-      .callback = NULL};
+  I2CDMAConfig_t dma_config = {.address = LCD_I2C_ADDR_VDD,
+                               .tx = {.buff = lcd_lines.buff, .len = lcd_lines.len},
+                               .rx = {.buff = NULL, .len = 0},
+                               .tx_stream = I2C_DMA_TX_STREAM,
+                               .dma_set_buffer_cb = dma_set_buffer,
+                               .dma_start_transfer_cb = dma_start_transfer,
+                               .circular = I2C_INTERRUPT_NON_CIRCULAR,
+                               .callback = NULL};
   i2c_setup_interrupt_dma(I2C_PORT, &dma_config);
 }
 
 void setup_lcd_ret_home_xmission(void) {
-  I2CDMAConfig_t dma_config = {
-      .address = LCD_I2C_ADDR_VDD,
-      .tx = {.buff = ret_home, .len = SIZEOF(ret_home)},
-      .rx = {.buff = NULL, .len = 0},
-      .tx_stream = I2C_DMA_TX_STREAM,
-      .dma_set_buffer_cb = dma_set_buffer,
-      .dma_start_transfer_cb = dma_start_transfer,
-      .circular = I2C_INTERRUPT_NON_CIRCULAR,
-      .callback = NULL};
+  I2CDMAConfig_t dma_config = {.address = LCD_I2C_ADDR_VDD,
+                               .tx = {.buff = clr_home, .len = SIZEOF(clr_home)},
+                               .rx = {.buff = NULL, .len = 0},
+                               .tx_stream = I2C_DMA_TX_STREAM,
+                               .dma_set_buffer_cb = dma_set_buffer,
+                               .dma_start_transfer_cb = dma_start_transfer,
+                               .circular = I2C_INTERRUPT_NON_CIRCULAR,
+                               .callback = NULL};
   i2c_setup_interrupt_dma(I2C_PORT, &dma_config);
 }
