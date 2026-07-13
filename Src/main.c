@@ -211,9 +211,9 @@ int main(void) {
       i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_NO_STOP);
   }
 
-  NVIC_EnableIRQ(I2C_DMA_TX_STREAM_IRQN);
-  NVIC_EnableIRQ(I2C_PORT_EV_IRQN);
-  NVIC_EnableIRQ(I2C_PORT_ERR_IRQN);
+  // NVIC_EnableIRQ(I2C_DMA_TX_STREAM_IRQN);
+  // NVIC_EnableIRQ(I2C_PORT_EV_IRQN);
+  // NVIC_EnableIRQ(I2C_PORT_ERR_IRQN);
 
   for (;;) {
   }
