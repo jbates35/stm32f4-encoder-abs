@@ -59,7 +59,6 @@ int _write(int le, char* ptr, int len) {
 #define I2C_DMA_RX_CHANNEL 1
 #define I2C_DMA_RX_STREAM_IRQN DMA1_Stream5_IRQn
 #define I2C_DMA_RX_STREAM_IRQ_HANDLER DMA1_Stream5_IRQHandler
-
 #define SIZEOF(arr) ((unsigned int)sizeof(arr) / sizeof(arr[0]))
 
 #define VERY_FAST 16
@@ -372,4 +371,44 @@ void setup_lcd_clr_scr_xmission(void) {
                                .circular = I2C_INTERRUPT_NON_CIRCULAR,
                                .callback = NULL};
   i2c_setup_interrupt_dma(I2C_PORT, &dma_config);
+}
+
+void i2c_timer_50hz_setup() {
+  TimerHandle_t i2c_tim_handle = {.cfg = {.channel_1 =
+                                              {
+                                                  .channel_mode = TIMER_CHANNEL_MODE_COMPARE,
+                                                  .gpio_en = TIMER_DISABLE,
+                                                  .ccr = 0xFFFF,
+                                                  .interrupt_en = TIMER_ENABLE,
+                                              },
+                                          .one_shot_enabled = TIMER_DISABLE,
+                                          .start_enabled = TIMER_DISABLE,
+                                          .channel_count = 1,
+                                          .direction = TIMER_DIR_UP,
+                                          .arr = 0xFFFF,
+                                          .prescaler = 12},
+                                  .p_base_addr = TIM8};  // Fix - find better timer
+  timer_peri_clock_control(TIM5, 1);                     // fix - find better timer
+  timer_init(&i2c_tim_handle);
+  NVIC_EnableIRQ(TIM8_CC_IRQn);  // fix
+}
+
+void i2c_timer_clear_setup() {
+  TimerHandle_t i2c_tim_handle = {.cfg = {.channel_1 =
+                                              {
+                                                  .channel_mode = TIMER_CHANNEL_MODE_COMPARE,
+                                                  .gpio_en = TIMER_DISABLE,
+                                                  .ccr = 0xFFF,
+                                                  .interrupt_en = TIMER_ENABLE,
+                                              },
+                                          .one_shot_enabled = TIMER_ENABLE,
+                                          .start_enabled = TIMER_DISABLE,
+                                          .channel_count = 1,
+                                          .direction = TIMER_DIR_UP,
+                                          .arr = 0xFFFF,
+                                          .prescaler = 12},
+                                  .p_base_addr = TIM8};
+  timer_peri_clock_control(TIM8, 1);
+  timer_init(&i2c_tim_handle);
+  NVIC_EnableIRQ(TIM8_CC_IRQn);
 }
