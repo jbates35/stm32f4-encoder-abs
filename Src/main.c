@@ -251,7 +251,7 @@ void TIM5_CC_IRQ_HANDLER(void) {
     setup_lcd_clr_scr_xmission();
     i2c_start_interrupt_dma(I2C_PORT);
   } else if (timer_irq_handling(TIM8, 2)) {
-    char enc_str[16] = "";
+    volatile char enc_str[16] = "";
     convert_uint32_to_str(enc_str, 16, enc_cnt);
     set_lcd_str(&lcd_lines, "Encoder count:", 14, enc_str, 16);
     setup_lcd_chars_xmission();
