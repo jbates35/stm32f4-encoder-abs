@@ -204,16 +204,16 @@ int main(void) {
   i2c_master_send(I2C_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
   WAIT(MEDIUM);
 
-  // // Clear screen
-  // i2c_master_send(I2C_PORT, clr_scr, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
-  // WAIT(SLOW);
-  //
-  // // Get encoder strings
-  // const char str1[] = "Encoder cnt";
-  // const int len1 = SIZEOF(str1) - 1;
-  // char str2[16];
-  // convert_uint32_to_str(str2, 16, enc_cnt);
-  // const int len2 = 16;
+  // Clear screen
+  i2c_master_send(I2C_PORT, clr_scr, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
+  WAIT(SLOW);
+
+  // Get encoder strings
+  const char str1[] = "Encoder cnt";
+  const int len1 = SIZEOF(str1) - 1;
+  char str2[16];
+  convert_uint32_to_str(str2, 16, enc_cnt);
+  const int len2 = 16;
 
   NVIC_EnableIRQ(I2C_DMA_TX_STREAM_IRQN);
   NVIC_EnableIRQ(I2C_PORT_EV_IRQN);
@@ -221,9 +221,9 @@ int main(void) {
 
   timer_enable(I2C_TIM_PORT);
 
-  // set_lcd_str(&lcd_lines, str1, len1, str2, len2);
-  // setup_lcd_chars_xmission();
-  // i2c_start_interrupt_dma(I2C_PORT);
+  set_lcd_str(&lcd_lines, str1, len1, str2, len2);
+  setup_lcd_chars_xmission();
+  i2c_start_interrupt_dma(I2C_PORT);
 
   for (;;) {
     enc_cnt++;
@@ -248,9 +248,10 @@ void I2C_DMA_TX_STREAM_IRQ_HANDLER(void) {
 
 void I2C_TIM_IRQ_HANDLER(void) {
   if (timer_irq_handling(I2C_TIM_PORT, 1)) {
+    timer_disable(TIM5);
     setup_lcd_clr_scr_xmission();
     i2c_start_interrupt_dma(I2C_PORT);
-  } else if (timer_irq_handling(I2C_TIM_PORT, 2)) {
+    WAIT(MEDIUM);
     volatile char enc_str[16] = "";
     convert_uint32_to_str(enc_str, 16, enc_cnt);
     set_lcd_str(&lcd_lines, "Encoder count:", 14, enc_str, 16);
