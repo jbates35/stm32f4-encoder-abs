@@ -246,11 +246,11 @@ void I2C_DMA_TX_STREAM_IRQ_HANDLER(void) {
     i2c_dma_irq_handling_end(I2C_PORT, I2C_TXRX_DIR_SEND);
 }
 
-void TIM5_CC_IRQ_HANDLER(void) {
-  if (timer_irq_handling(TIM8, 1)) {
+void I2C_TIM_IRQ_HANDLER(void) {
+  if (timer_irq_handling(I2C_TIM_PORT, 1)) {
     setup_lcd_clr_scr_xmission();
     i2c_start_interrupt_dma(I2C_PORT);
-  } else if (timer_irq_handling(TIM8, 2)) {
+  } else if (timer_irq_handling(I2C_TIM_PORT, 2)) {
     volatile char enc_str[16] = "";
     convert_uint32_to_str(enc_str, 16, enc_cnt);
     set_lcd_str(&lcd_lines, "Encoder count:", 14, enc_str, 16);
