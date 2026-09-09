@@ -156,7 +156,7 @@ typedef struct {
 } lcd_lines_t;
 
 lcd_lines_t lcd_lines;
-uint8_t clr_scr[4];
+uint8_t ret_home[4];
 
 // NOTE: temp cnt
 int enc_cnt = 0;
@@ -166,7 +166,7 @@ int enc_cnt = 0;
  * **/
 void set_bytes_arr(uint8_t* arr, const lcd_rs_type_t rs, const uint8_t word);
 void setup_lcd_chars_xmission(void);
-void setup_lcd_clr_scr_xmission(void);
+void setup_lcd_ret_home_xmission(void);
 void convert_uint32_to_str(void* arr, int capacity, uint32_t num);
 void set_lcd_str(lcd_lines_t* lcd_lines, const void* buff1, int len1, const void* buff2, int len2);
 
@@ -174,7 +174,7 @@ void i2c_timer_50hz_setup(void);
 void i2c_dma_setup(void);
 
 int main(void) {
-  set_bytes_arr(clr_scr, LCD_RS_INST_WR, LCD_CLEAR_DISPLAY);
+  set_bytes_arr(ret_home, LCD_RS_INST_WR, LCD_RETURN_HOME);
 
   WAIT(SLOW);
   i2c_timer_50hz_setup();
@@ -205,7 +205,9 @@ int main(void) {
   WAIT(MEDIUM);
 
   // Clear screen
-  i2c_master_send(I2C_PORT, clr_scr, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
+  uint8_t clr_disp = LCD_CLEAR_DISPLAY;
+  set_bytes_arr(bytes, LCD_RS_INST_WR, clr_disp);
+  i2c_master_send(I2C_PORT, ret_home, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP);
   WAIT(SLOW);
 
   // Get encoder strings
@@ -222,8 +224,6 @@ int main(void) {
   timer_enable(I2C_TIM_PORT);
 
   set_lcd_str(&lcd_lines, str1, len1, str2, len2);
-  setup_lcd_chars_xmission();
-  i2c_start_interrupt_dma(I2C_PORT);
 
   for (;;) {
     enc_cnt++;
@@ -248,13 +248,12 @@ void I2C_DMA_TX_STREAM_IRQ_HANDLER(void) {
 
 void I2C_TIM_IRQ_HANDLER(void) {
   if (timer_irq_handling(I2C_TIM_PORT, 1)) {
-    timer_disable(TIM5);
-    setup_lcd_clr_scr_xmission();
+    setup_lcd_ret_home_xmission();
     i2c_start_interrupt_dma(I2C_PORT);
-    WAIT(MEDIUM);
+  } else if (timer_irq_handling(I2C_TIM_PORT, 2)) {
     volatile char enc_str[16] = "";
     convert_uint32_to_str(enc_str, 16, enc_cnt);
-    set_lcd_str(&lcd_lines, "Encoder count:", 14, enc_str, 16);
+    set_lcd_str(&lcd_lines, "Encoder count:  ", 16, enc_str, 16);
     setup_lcd_chars_xmission();
     i2c_start_interrupt_dma(I2C_PORT);
   }
@@ -386,9 +385,9 @@ void setup_lcd_chars_xmission(void) {
   i2c_setup_interrupt_dma(I2C_PORT, &dma_config);
 }
 
-void setup_lcd_clr_scr_xmission(void) {
+void setup_lcd_ret_home_xmission(void) {
   I2CDMAConfig_t dma_config = {.address = LCD_I2C_ADDR_VDD,
-                               .tx = {.buff = clr_scr, .len = SIZEOF(clr_scr)},
+                               .tx = {.buff = ret_home, .len = SIZEOF(ret_home)},
                                .rx = {.buff = NULL, .len = 0},
                                .tx_stream = I2C_DMA_TX_STREAM,
                                .dma_set_buffer_cb = dma_set_buffer,
@@ -405,13 +404,13 @@ void i2c_timer_50hz_setup(void) {
                                                         .interrupt_en = TIMER_ENABLE},
                                           .channel_2 = {.channel_mode = TIMER_CHANNEL_MODE_COMPARE,
                                                         .gpio_en = TIMER_DISABLE,
-                                                        .ccr = 0x1809,
+                                                        .ccr = 0x1000,
                                                         .interrupt_en = TIMER_ENABLE
 
                                           },
                                           .one_shot_enabled = TIMER_DISABLE,
                                           .start_enabled = TIMER_DISABLE,
-                                          .channel_count = 1,
+                                          .channel_count = 2,
                                           .direction = TIMER_DIR_UP,
                                           .arr = 0xF062,
                                           .prescaler = 12},
