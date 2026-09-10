@@ -75,32 +75,6 @@ int _write(int le, char* ptr, int len) {
     for (int sleep_cnt = 0; sleep_cnt < CNT; sleep_cnt++); \
   } while (0)
 
-/*
-void setup_start_sequence_dma(void) {
-  I2CDMAConfig_t dma_config = {.address = gyro_addr,
-                               .tx = {.buff = tx_start_buff, .len =
-SIZEOF(tx_start_buff)}, .rx = {.buff = NULL, .len = 0}, .tx_stream =
-I2C_DMA_TX_STREAM, .rx_stream = I2C_DMA_RX_STREAM, .dma_set_buffer_cb =
-dma_set_buffer, .dma_start_transfer_cb = dma_start_transfer, .circular =
-I2C_INTERRUPT_NON_CIRCULAR, .callback = setup_main_sequence_dma};
-  i2c_setup_interrupt_dma(I2C_PORT, &dma_config);
-}
-
-void setup_main_sequence_dma(void) {
-  I2CDMAConfig_t dma_config = {.address = gyro_addr,
-                               .tx = {.buff = tx_buff, .len = SIZEOF(tx_buff)},
-                               .rx = {.buff = rx_buff, .len = SIZEOF(rx_buff)},
-                               .tx_stream = I2C_DMA_TX_STREAM,
-                               .rx_stream = I2C_DMA_RX_STREAM,
-                               .dma_set_buffer_cb = dma_set_buffer,
-                               .dma_start_transfer_cb = dma_start_transfer,
-                               .circular = I2C_INTERRUPT_NON_CIRCULAR,
-                               .callback = express_data};
-  i2c_setup_interrupt_dma(I2C_PORT, &dma_config);
-  timer_enable(TIM8);
-}
-*/
-
 // START OF 1602 I2C MACROS
 #define LCD_I2C_ADDR_VDD 0x27  // When A0/1/2 are all HIGH
 
@@ -146,12 +120,13 @@ void setup_main_sequence_dma(void) {
 #define LCD_BACKLIGHT_ON_MASK 0x8
 #define LCD_BACKLIGHT_OFF_MASK 0
 
+#define LCD_JUMP_FIRST_LINE 0x80   // Used to set DDRAM to first line
 #define LCD_JUMP_SECOND_LINE 0xC0  // Used to set DDRAM to second line
 
 typedef enum { LCD_RS_INST_WR = 0, LCD_RS_DDR_WR = 1 } lcd_rs_type_t;
 
 typedef struct {
-  uint8_t buff[132];
+  uint8_t buff[136];
   int len;
 } lcd_lines_t;
 
@@ -248,9 +223,6 @@ void I2C_DMA_TX_STREAM_IRQ_HANDLER(void) {
 
 void I2C_TIM_IRQ_HANDLER(void) {
   if (timer_irq_handling(I2C_TIM_PORT, 1)) {
-    setup_lcd_ret_home_xmission();
-    i2c_start_interrupt_dma(I2C_PORT);
-  } else if (timer_irq_handling(I2C_TIM_PORT, 2)) {
     volatile char enc_str[16] = "";
     convert_uint32_to_str(enc_str, 16, enc_cnt);
     set_lcd_str(&lcd_lines, "Encoder count:  ", 16, enc_str, 16);
@@ -306,6 +278,9 @@ void set_lcd_str(lcd_lines_t* lcd_lines, const void* buff1, int len1, const void
 
   len1 = (len1 > 16) ? 16 : len1;
   len2 = (len2 > 16) ? 16 : len2;
+
+  set_bytes_arr(lcd_lines->buff + buff_cnt, LCD_RS_INST_WR, LCD_JUMP_FIRST_LINE);
+  buff_cnt += 4;
 
   for (int i = 0; i < len1; i++) {
     set_bytes_arr(lcd_lines->buff + buff_cnt, LCD_RS_DDR_WR, ((uint8_t*)buff1)[i]);
@@ -402,15 +377,9 @@ void i2c_timer_50hz_setup(void) {
                                                         .gpio_en = TIMER_DISABLE,
                                                         .ccr = 0,
                                                         .interrupt_en = TIMER_ENABLE},
-                                          .channel_2 = {.channel_mode = TIMER_CHANNEL_MODE_COMPARE,
-                                                        .gpio_en = TIMER_DISABLE,
-                                                        .ccr = 0x1000,
-                                                        .interrupt_en = TIMER_ENABLE
-
-                                          },
                                           .one_shot_enabled = TIMER_DISABLE,
                                           .start_enabled = TIMER_DISABLE,
-                                          .channel_count = 2,
+                                          .channel_count = 1,
                                           .direction = TIMER_DIR_UP,
                                           .arr = 0xF062,
                                           .prescaler = 12},
