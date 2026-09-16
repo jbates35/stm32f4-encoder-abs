@@ -30,6 +30,8 @@
 #define I2C_1602_TIM_IRQN TIM5_IRQn
 #define I2C_1602_TIM_IRQ_HANDLER TIM5_IRQHandler
 
+typedef enum { I2C_1602_STATUS_OK = 0 } I2C1602StatusCode_t;
+
 typedef struct {
   int mcu_freq;
   uint8_t lcd_freq;
@@ -39,4 +41,9 @@ typedef struct {
   uint8_t line2_len;
 } LCD1602RuntimeConfig_t;
 
+// Step 1:
+I2C1602StatusCode_t setup_1602_lcd_peripherals(LCD1602RuntimeConfig_t cfg);
+
+// Step 2:
+I2C1602StatusCode_t setup_1602_lcd_screen();
 #endif
