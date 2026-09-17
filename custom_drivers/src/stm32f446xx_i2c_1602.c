@@ -1,9 +1,14 @@
 #include "stm32f446xx_i2c_1602.h"
 
-// TODO: setup_1602_lcd_peripherals should use return codes
-// TODO: Implement config variables in setup_1602_lcd_peripherals
-
 I2C1602StatusCode_t setup_1602_lcd_peripherals(LCD1602RuntimeConfig_t cfg) {
+  int ticks_hz = cfg.mcu_freq_hz / cfg.lcd_freq_hz;
+
+  int prescaler = 1;
+  while ((ticks_hz / (prescaler + 1)) > 65535) {
+    prescaler *= 2;
+  }
+  int ticks_hz_modified = ticks_hz / (prescaler + 1);
+
   // First, timer setup
   timer_peri_clock_control(I2C_1602_TIM_PORT, 1);
   TimerHandle_t i2c_tim_handle = {.cfg = {.channel_1 = {.channel_mode = TIMER_CHANNEL_MODE_COMPARE,
@@ -14,10 +19,10 @@ I2C1602StatusCode_t setup_1602_lcd_peripherals(LCD1602RuntimeConfig_t cfg) {
                                           .start_enabled = TIMER_DISABLE,
                                           .channel_count = 1,
                                           .direction = TIMER_DIR_UP,
-                                          .arr = 0xF062,
-                                          .prescaler = 12},
+                                          .arr = ticks_hz_modified,
+                                          .prescaler = prescaler},
                                   .p_base_addr = I2C_1602_TIM_PORT};
-  timer_init(&i2c_tim_handle);
+  if (timer_init(&i2c_tim_handle) < 0) return I2C_1602_BAD_PERIPHERAL_SETUP;
   NVIC_EnableIRQ(I2C_1602_TIM_IRQN);
 
   // Then setup GPIO for I2C module
@@ -58,7 +63,7 @@ I2C1602StatusCode_t setup_1602_lcd_peripherals(LCD1602RuntimeConfig_t cfg) {
               .start_enabled = DMA_DISABLE},
   };
   dma_peri_clock_control(I2C_1602_DMA_PORT, DMA_ENABLE);
-  dma_stream_init(&dma_tx_handle);
+  if (dma_stream_init(&dma_tx_handle) < 0) return I2C_1602_BAD_PERIPHERAL_SETUP;
 
   // Setup I2C module lastly
   I2CHandle_t i2c_handle = {.addr = I2C_1602_PORT,
@@ -69,7 +74,7 @@ I2C1602StatusCode_t setup_1602_lcd_peripherals(LCD1602RuntimeConfig_t cfg) {
                                     .dma_enable = I2C_DISABLE,
                                     .enable_on_init = I2C_ENABLE}};
   i2c_peri_clock_control(I2C_1602_PORT, I2C_ENABLE);
-  i2c_init(&i2c_handle);
+  if (i2c_init(&i2c_handle) != I2C_STATUS_OK) return I2C_1602_BAD_PERIPHERAL_SETUP;
 
   return I2C_1602_STATUS_OK;
 }
