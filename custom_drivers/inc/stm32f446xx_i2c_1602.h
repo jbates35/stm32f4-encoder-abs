@@ -30,7 +30,7 @@
 #define I2C_1602_TIM_IRQN TIM5_IRQn
 #define I2C_1602_TIM_IRQ_HANDLER TIM5_IRQHandler
 
-typedef enum { I2C_1602_STATUS_OK = 0, I2C_1602_BAD_PERIPHERAL_SETUP } I2C1602StatusCode_t;
+typedef enum { I2C_1602_STATUS_OK = 0, I2C_1602_BAD_PERIPHERAL_SETUP, I2C_1602_ERROR_IN_SETUP } I2C1602StatusCode_t;
 
 typedef struct {
   int mcu_freq_hz;
