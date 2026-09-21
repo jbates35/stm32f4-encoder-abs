@@ -30,7 +30,13 @@
 #define I2C_1602_TIM_IRQN TIM5_IRQn
 #define I2C_1602_TIM_IRQ_HANDLER TIM5_IRQHandler
 
-typedef enum { I2C_1602_STATUS_OK = 0, I2C_1602_BAD_PERIPHERAL_SETUP, I2C_1602_ERROR_IN_SETUP } I2C1602StatusCode_t;
+typedef enum {
+  I2C_1602_STATUS_OK = 0,
+  I2C_1602_BAD_PERIPHERAL_SETUP,
+  I2C_1602_ERROR_IN_SETUP,
+  I2C_1602_NULL_PTRS,
+  I2C_1602_NO_LENGTH
+} I2C1602StatusCode_t;
 
 typedef struct {
   int mcu_freq_hz;
@@ -46,4 +52,8 @@ I2C1602StatusCode_t setup_1602_lcd_peripherals(LCD1602RuntimeConfig_t cfg);
 
 // Step 2:
 I2C1602StatusCode_t setup_1602_lcd_screen();
+
+// Setp 3:
+I2C1602StatusCode_t set_lcd_str(const void* buff1, uint8_t len1, const void* buff2, uint8_t len2);
+
 #endif

@@ -157,7 +157,7 @@ I2C1602StatusCode_t setup_1602_lcd_peripherals(LCD1602RuntimeConfig_t cfg) {
 
   // Setup I2C module lastly
   I2CHandle_t i2c_handle = {.addr = I2C_1602_PORT,
-                            .cfg = {.peri_clock_freq_hz = (uint32_t)16E6,
+                            .cfg = {.peri_clock_freq_hz = (uint32_t)cfg.mcu_freq_hz,
                                     .device_mode = I2C_DEVICE_MODE_MASTER,
                                     .scl_mode = I2C_SCL_MODE_SPEED_SM,
                                     .interrupt_enable = I2C_ENABLE,
@@ -205,12 +205,58 @@ I2C1602StatusCode_t setup_1602_lcd_screen() {
   if (i2c_master_send(I2C_1602_PORT, bytes, SIZEOF(bytes), LCD_I2C_ADDR_VDD, I2C_STOP) != I2C_STATUS_OK)
     return I2C_1602_ERROR_IN_SETUP;
   WAIT(MEDIUM);
-  WAIT(MEDIUM);
 
   // Turn on NVICs now
   NVIC_EnableIRQ(I2C_1602_DMA_STREAM_IRQN);
   NVIC_EnableIRQ(I2C_1602_PORT_EV_IRQN);
   NVIC_EnableIRQ(I2C_1602_PORT_ERR_IRQN);
+
+  return I2C_1602_STATUS_OK;
+}
+
+I2C1602StatusCode_t set_lcd_str(const void* buff1, uint8_t len1, const void* buff2, uint8_t len2) {
+  int buff_cnt = 0;
+
+  len1 = (len1 > 16) ? 16 : len1;
+  len2 = (len2 > 16) ? 16 : len2;
+
+  set_bytes_arr(lcd_lines.buff + buff_cnt, LCD_RS_INST_WR, LCD_JUMP_FIRST_LINE);
+  buff_cnt += 4;
+
+  for (int i = 0; i < len1; i++) {
+    set_bytes_arr(lcd_lines.buff + buff_cnt, LCD_RS_DDR_WR, ((uint8_t*)buff1)[i]);
+    buff_cnt += 4;
+  }
+
+  for (int i = len1; i < 16; i++) {
+    set_bytes_arr(lcd_lines.buff + buff_cnt, LCD_RS_DDR_WR, ' ');
+    buff_cnt += 4;
+  }
+
+  set_bytes_arr(lcd_lines.buff + buff_cnt, LCD_RS_INST_WR, LCD_JUMP_SECOND_LINE);
+  buff_cnt += 4;
+
+  for (int i = 0; i < len2; i++) {
+    set_bytes_arr(lcd_lines.buff + buff_cnt, LCD_RS_DDR_WR, ((uint8_t*)buff2)[i]);
+    buff_cnt += 4;
+  }
+
+  for (int i = len2; i < 16; i++) {
+    set_bytes_arr(lcd_lines.buff + buff_cnt, LCD_RS_DDR_WR, ' ');
+    buff_cnt += 4;
+  }
+
+  lcd_lines.len = buff_cnt;
+
+  I2CDMAConfig_t dma_config = {.address = LCD_I2C_ADDR_VDD,
+                               .tx = {.buff = lcd_lines.buff, .len = lcd_lines.len},
+                               .rx = {.buff = NULL, .len = 0},
+                               .tx_stream = I2C_1602_DMA_STREAM,
+                               .dma_set_buffer_cb = dma_set_buffer,
+                               .dma_start_transfer_cb = dma_start_transfer,
+                               .circular = I2C_INTERRUPT_NON_CIRCULAR,
+                               .callback = NULL};
+  if (i2c_setup_interrupt_dma(I2C_1602_PORT, &dma_config) != I2C_STATUS_OK) return I2C_1602_ERROR_IN_SETUP;
 
   return I2C_1602_STATUS_OK;
 }
