@@ -1,5 +1,14 @@
+
 #include "stm32f446xx_i2c_1602.h"
-//
+
+#include <stdio.h>
+#include <string.h>
+
+#include "stm32f446xx_dma.h"
+#include "stm32f446xx_gpio.h"
+#include "stm32f446xx_i2c.h"
+#include "stm32f446xx_tim.h"
+
 // START OF 1602 I2C MACROS
 #define LCD_I2C_ADDR_VDD 0x27  // When A0/1/2 are all HIGH
 
@@ -50,6 +59,8 @@ typedef enum { LCD_RS_INST_WR = 0, LCD_RS_DDR_WR = 1 } lcd_rs_type_t;
 typedef struct {
   uint8_t buff[136];
   int len;
+  uint8_t lcd_enabled;
+  uint8_t lines_being_updated;
 } lcd_lines_t;
 lcd_lines_t lcd_lines;
 
@@ -67,7 +78,7 @@ static inline void set_bytes_arr(uint8_t* arr, const lcd_rs_type_t rs, const uin
   arr[3] = low | rs_mask | clk_lo;
 }
 
-static inline void convert_uint32_to_str(void* arr, int len, uint32_t num) {
+void convert_uint32_to_str(void* arr, int len, uint32_t num) {
   if (len > 16) len = 16;
   for (int i = 0; i < len; i++) ((uint8_t*)arr)[i] = ' ';
 
@@ -90,8 +101,8 @@ static inline void convert_uint32_to_str(void* arr, int len, uint32_t num) {
   }
 }
 
-I2C1602StatusCode_t setup_1602_lcd_peripherals(LCD1602RuntimeConfig_t cfg) {
-  int ticks_hz = cfg.mcu_freq_hz / cfg.lcd_freq_hz;
+I2C1602StatusCode_t setup_1602_lcd_peripherals(uint32_t mcu_freq_hz, uint8_t lcd_freq_hz) {
+  int ticks_hz = mcu_freq_hz / lcd_freq_hz;
 
   int prescaler = 1;
   while ((ticks_hz / (prescaler + 1)) > 65535) {
@@ -157,7 +168,7 @@ I2C1602StatusCode_t setup_1602_lcd_peripherals(LCD1602RuntimeConfig_t cfg) {
 
   // Setup I2C module lastly
   I2CHandle_t i2c_handle = {.addr = I2C_1602_PORT,
-                            .cfg = {.peri_clock_freq_hz = (uint32_t)cfg.mcu_freq_hz,
+                            .cfg = {.peri_clock_freq_hz = (uint32_t)mcu_freq_hz,
                                     .device_mode = I2C_DEVICE_MODE_MASTER,
                                     .scl_mode = I2C_SCL_MODE_SPEED_SM,
                                     .interrupt_enable = I2C_ENABLE,
@@ -173,7 +184,7 @@ I2C1602StatusCode_t setup_1602_lcd_peripherals(LCD1602RuntimeConfig_t cfg) {
 
 // TODO: Implement - this takes care of actually setting up the bytes and what not to clear screen and get it ready for
 // messages
-I2C1602StatusCode_t setup_1602_lcd_screen() {
+I2C1602StatusCode_t setup_1602_lcd_screen(void) {
   uint8_t bytes[4];
   // Refer to page 39 of manual
   // Function set 4 bit (DB5 = 1, DB4=1, RS=0, RW=0)
@@ -206,6 +217,12 @@ I2C1602StatusCode_t setup_1602_lcd_screen() {
     return I2C_1602_ERROR_IN_SETUP;
   WAIT(MEDIUM);
 
+  // Disable lcd_lines for now
+  memset(&lcd_lines.buff, 0, SIZEOF(lcd_lines.buff));
+  lcd_lines.len = 0;
+  lcd_lines.lcd_enabled = 0;
+  lcd_lines.lines_being_updated = 0;
+
   // Turn on NVICs now
   NVIC_EnableIRQ(I2C_1602_DMA_STREAM_IRQN);
   NVIC_EnableIRQ(I2C_1602_PORT_EV_IRQN);
@@ -214,8 +231,9 @@ I2C1602StatusCode_t setup_1602_lcd_screen() {
   return I2C_1602_STATUS_OK;
 }
 
-I2C1602StatusCode_t set_lcd_str(const void* buff1, uint8_t len1, const void* buff2, uint8_t len2) {
+I2C1602StatusCode_t set_1602_lcd_str(const void* buff1, uint8_t len1, const void* buff2, uint8_t len2) {
   int buff_cnt = 0;
+  lcd_lines.lines_being_updated = 1;
 
   len1 = (len1 > 16) ? 16 : len1;
   len2 = (len2 > 16) ? 16 : len2;
@@ -256,10 +274,18 @@ I2C1602StatusCode_t set_lcd_str(const void* buff1, uint8_t len1, const void* buf
                                .dma_start_transfer_cb = dma_start_transfer,
                                .circular = I2C_INTERRUPT_NON_CIRCULAR,
                                .callback = NULL};
-  if (i2c_setup_interrupt_dma(I2C_1602_PORT, &dma_config) != I2C_STATUS_OK) return I2C_1602_ERROR_IN_SETUP;
+  if (i2c_setup_interrupt_dma(I2C_1602_PORT, &dma_config) != I2C_STATUS_OK) {
+    lcd_lines.lines_being_updated = 0;
+    return I2C_1602_ERROR_IN_SETUP;
+  }
 
+  lcd_lines.lines_being_updated = 0;
   return I2C_1602_STATUS_OK;
 }
+
+// Control funcs
+void enable_1602_lcd_updating(void) { lcd_lines.lcd_enabled = 1; }
+void disable_1602_lcd_updating(void) { lcd_lines.lcd_enabled = 0; }
 
 // NVIC Definitions here:
 void I2C_PORT_EV_IRQ_HANDLER(void) { i2c_dma_irq_handling_start(I2C_1602_PORT); }
@@ -280,12 +306,7 @@ void I2C_DMA_TX_STREAM_IRQ_HANDLER(void) {
 // TImer logic for sending the word itself
 void I2C_TIM_IRQ_HANDLER(void) {
   if (timer_irq_handling(I2C_1602_TIM_PORT, 1)) {
-    // volatile char enc_str[16] = "";
-    // convert_uint32_to_str(enc_str, 16, enc_cnt);
-    // set_lcd_str(&lcd_lines, "Encoder count:  ", 16, enc_str, 16);
-    // setup_lcd_chars_xmission();
-    // i2c_start_interrupt_dma(I2C_PORT);
+    if (lcd_lines.lines_being_updated || lcd_lines.lcd_enabled) return;
+    i2c_start_interrupt_dma(I2C_1602_PORT);
   }
 }
-//
-//

@@ -3,13 +3,8 @@
 #define INC_STM32F446XX_I2C_1602_H_
 
 #include <stdint.h>
-#include <stdio.h>
 
 #include "stm32f446xx.h"
-#include "stm32f446xx_dma.h"
-#include "stm32f446xx_gpio.h"
-#include "stm32f446xx_i2c.h"
-#include "stm32f446xx_tim.h"
 
 #define I2C_1602_GPIO_PORT GPIOB
 #define I2C_1602_GPIO_SCL_PIN 8
@@ -38,22 +33,20 @@ typedef enum {
   I2C_1602_NO_LENGTH
 } I2C1602StatusCode_t;
 
-typedef struct {
-  int mcu_freq_hz;
-  uint8_t lcd_freq_hz;
-  uint8_t* line1_arr;
-  uint8_t line1_len;
-  uint8_t* line2_arr;
-  uint8_t line2_len;
-} LCD1602RuntimeConfig_t;
+// Helper function for things like encoder counts and what not
+void convert_uint32_to_str(void* arr, int len, uint32_t num);
 
 // Step 1:
-I2C1602StatusCode_t setup_1602_lcd_peripherals(LCD1602RuntimeConfig_t cfg);
+I2C1602StatusCode_t setup_1602_lcd_peripherals(uint32_t mcu_freq_hz, uint8_t lcd_freq_hz);
 
 // Step 2:
-I2C1602StatusCode_t setup_1602_lcd_screen();
+I2C1602StatusCode_t setup_1602_lcd_screen(void);
 
 // Setp 3:
-I2C1602StatusCode_t set_lcd_str(const void* buff1, uint8_t len1, const void* buff2, uint8_t len2);
+I2C1602StatusCode_t set_1602_lcd_str(const void* buff1, uint8_t len1, const void* buff2, uint8_t len2);
+
+// Step 4
+void enable_1602_lcd_updating(void);
+void disable_1602_lcd_updating(void);
 
 #endif
