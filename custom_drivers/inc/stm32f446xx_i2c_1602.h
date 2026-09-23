@@ -45,7 +45,10 @@ I2C1602StatusCode_t setup_1602_lcd_screen(void);
 // Setp 3:
 I2C1602StatusCode_t set_1602_lcd_str(const void* buff1, uint8_t len1, const void* buff2, uint8_t len2);
 
-// Step 4
+// Step 4:
+I2C1602StatusCode_t set_1602_dma_arr(void);
+
+// Step 5
 void enable_1602_lcd_updating(void);
 void disable_1602_lcd_updating(void);
 

@@ -56,6 +56,9 @@ int main(void) {
   const char line1_str[] = "Encoder cnt:";
   char line2_str[16];
 
+  set_1602_lcd_str("Encoder count:", SIZEOF(line1_str), line2_str, SIZEOF(line2_str));
+  set_1602_dma_arr();
+
   enable_1602_lcd_updating();
   for (;;) {
     enc_cnt++;

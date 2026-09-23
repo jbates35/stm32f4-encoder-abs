@@ -228,21 +228,6 @@ I2C1602StatusCode_t setup_1602_lcd_screen(void) {
   NVIC_EnableIRQ(I2C_1602_PORT_EV_IRQN);
   NVIC_EnableIRQ(I2C_1602_PORT_ERR_IRQN);
 
-  I2CDMAConfig_t dma_config = {.address = LCD_I2C_ADDR_VDD,
-                               .tx = {.buff = lcd_lines.buff, .len = 136},
-                               .rx = {.buff = NULL, .len = 0},
-                               .tx_stream = I2C_1602_DMA_STREAM,
-                               .dma_set_buffer_cb = dma_set_buffer,
-                               .dma_start_transfer_cb = dma_start_transfer,
-                               .circular = I2C_INTERRUPT_NON_CIRCULAR,
-                               .callback = NULL};
-  if (i2c_setup_interrupt_dma(I2C_1602_PORT, &dma_config) != I2C_STATUS_OK) {
-    lcd_lines.lines_being_updated = 0;
-    return I2C_1602_ERROR_IN_SETUP;
-  }
-
-  lcd_lines.lines_being_updated = 0;
-
   return I2C_1602_STATUS_OK;
 }
 
@@ -280,7 +265,24 @@ I2C1602StatusCode_t set_1602_lcd_str(const void* buff1, uint8_t len1, const void
   }
 
   lcd_lines.len = buff_cnt;
+  lcd_lines.lines_being_updated = 0;
 
+  return I2C_1602_STATUS_OK;
+}
+
+// Should be run after the first instance of set_1602_lcd_Str
+I2C1602StatusCode_t set_1602_dma_arr(void) {
+  I2CDMAConfig_t dma_config = {.address = LCD_I2C_ADDR_VDD,
+                               .tx = {.buff = lcd_lines.buff, .len = lcd_lines.len},
+                               .rx = {.buff = NULL, .len = 0},
+                               .tx_stream = I2C_1602_DMA_STREAM,
+                               .dma_set_buffer_cb = dma_set_buffer,
+                               .dma_start_transfer_cb = dma_start_transfer,
+                               .circular = I2C_INTERRUPT_NON_CIRCULAR,
+                               .callback = NULL};
+  if (i2c_setup_interrupt_dma(I2C_1602_PORT, &dma_config) != I2C_STATUS_OK) {
+    return I2C_1602_ERROR_IN_SETUP;
+  }
   return I2C_1602_STATUS_OK;
 }
 
