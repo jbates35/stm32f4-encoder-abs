@@ -284,13 +284,19 @@ I2C1602StatusCode_t set_1602_lcd_str(const void* buff1, uint8_t len1, const void
 }
 
 // Control funcs
-void enable_1602_lcd_updating(void) { lcd_lines.lcd_enabled = 1; }
-void disable_1602_lcd_updating(void) { lcd_lines.lcd_enabled = 0; }
+void enable_1602_lcd_updating(void) {
+  lcd_lines.lcd_enabled = 1;
+  timer_enable(I2C_1602_TIM_PORT);
+}
+void disable_1602_lcd_updating(void) {
+  lcd_lines.lcd_enabled = 0;
+  timer_disable(I2C_1602_TIM_PORT);
+}
 
 // NVIC Definitions here:
-void I2C_PORT_EV_IRQ_HANDLER(void) { i2c_dma_irq_handling_start(I2C_1602_PORT); }
+void I2C_1602_PORT_EV_IRQ_HANDLER(void) { i2c_dma_irq_handling_start(I2C_1602_PORT); }
 
-void I2C_PORT_ERR_IRQ_HANDLER(void) {
+void I2C_1602_PORT_ERR_IRQ_HANDLER(void) {
   I2CIRQType_t irq_error = i2c_irq_error_handling(I2C_1602_PORT);
   if (irq_error == I2C_IRQ_TYPE_ERROR_ACKFAIL) {
     printf("Error...\n");
@@ -298,15 +304,15 @@ void I2C_PORT_ERR_IRQ_HANDLER(void) {
   }
 }
 
-void I2C_DMA_TX_STREAM_IRQ_HANDLER(void) {
+void I2C_1602_DMA_STREAM_IRQ_HANDLER(void) {
   if (dma_irq_handling(I2C_1602_DMA_STREAM, DMA_INTERRUPT_TYPE_FULL_TRANSFER_COMPLETE))
     i2c_dma_irq_handling_end(I2C_1602_PORT, I2C_TXRX_DIR_SEND);
 }
 
 // TImer logic for sending the word itself
-void I2C_TIM_IRQ_HANDLER(void) {
+void I2C_1602_TIM_IRQ_HANDLER(void) {
   if (timer_irq_handling(I2C_1602_TIM_PORT, 1)) {
-    if (lcd_lines.lines_being_updated || lcd_lines.lcd_enabled) return;
+    // if (lcd_lines.lines_being_updated || !lcd_lines.lcd_enabled) return;
     i2c_start_interrupt_dma(I2C_1602_PORT);
   }
 }
