@@ -21,6 +21,9 @@
 
 #include "stm32f446xx.h"
 #include "stm32f446xx_i2c_1602.h"
+#include "stm32f446xx_tim.h"
+
+void setup_encoder_mode(void);
 
 #if !defined(__SOFT_FP__) && defined(__ARM_FP)
 #warning "FPU is not initialized, but the project is compiling for an FPU. Please initialize the FPU before use."
@@ -66,4 +69,33 @@ int main(void) {
     set_1602_lcd_str("Encoder count:", SIZEOF(line1_str), line2_str, SIZEOF(line2_str));
     WAIT(1000);
   }
+}
+
+#define ENC_TIMER_PORT TIM1
+
+void setup_encoder_mode(void) {
+  timer_peri_clock_control(TIM1, TIMER_ENABLE);
+
+  // TODO: Verify the pins and line driver in the AD2
+
+  // Set GPIO for PA8 and PA9, Alt function AF1
+
+  // Steps for turning on encoder mode (page 484 in the ref manual)
+  // 1. Write SMS='011' in TIMx_SMCR register (this is for quad enc)
+
+  // 2. SElect the TI1 and TI@ polarity:
+  // PRogram the CC1P and CC2P bits in TIMx_CCER.
+  // Input filter can be programmed as well (but this
+  // has a driver on it). CC1NP and CC2NP must be kept low.
+
+  // As a note, refer to Table 107 for counting direction vs encoder signals
+
+  // 3. Configure DIR (for direction) and TIMx_ARR register (for auto reload value it counts up to or down from)
+
+  // 4. Map inputs: CC1S='01' in TIMx_CCMR1 register, CC2S='01' on TIMx_CCMR2 register
+
+  // 5a. CC1P='0', CC1NP='0', IC1F='0000 (TIMx_CCER register)'
+  // 5b. CC2P='0', CC2NP='0', IC2F='0000 (TIMx_CCER register)'
+
+  // 6. CEN = 1
 }
