@@ -20,6 +20,7 @@
 #include <stdint.h>
 
 #include "stm32f446xx.h"
+#include "stm32f446xx_gpio.h"
 #include "stm32f446xx_i2c_1602.h"
 #include "stm32f446xx_tim.h"
 
@@ -72,6 +73,12 @@ int main(void) {
 }
 
 #define ENC_TIMER_PORT TIM1
+#define ENC_A_GPIO_PORT GPIOA
+#define ENC_A_GPIO_PIN 8
+#define ENC_A_GPIO_ALTFN 1
+#define ENC_B_GPIO_PORT GPIOA
+#define ENC_B_GPIO_PIN 9
+#define ENC_B_GPIO_ALTFN 1
 
 void setup_encoder_mode(void) {
   timer_peri_clock_control(TIM1, TIMER_ENABLE);
@@ -79,23 +86,58 @@ void setup_encoder_mode(void) {
   // TODO: Verify the pins and line driver in the AD2
 
   // Set GPIO for PA8 and PA9, Alt function AF1
+  GPIOConfig_t a_cfg = {.mode = GPIO_MODE_ALTFN,
+                        .speed = GPIO_SPEED_MEDIUM,
+                        .float_resistor = GPIO_PUPDR_NONE,
+                        .alt_func_num = ENC_A_GPIO_ALTFN,
+                        .pin_number = ENC_A_GPIO_PIN};
+  GPIOHandle_t a_handle = {.p_GPIO_addr = ENC_A_GPIO_PORT, .cfg = a_cfg};
+  GPIO_peri_clock_control(ENC_A_GPIO_PORT, GPIO_CLOCK_ENABLE);
+  GPIO_init(&a_handle);
+
+  GPIOConfig_t b_cfg = {.mode = GPIO_MODE_ALTFN,
+                        .speed = GPIO_SPEED_MEDIUM,
+                        .float_resistor = GPIO_PUPDR_NONE,
+                        .alt_func_num = ENC_B_GPIO_ALTFN,
+                        .pin_number = ENC_B_GPIO_PIN};
+  GPIOHandle_t b_handle = {.p_GPIO_addr = ENC_B_GPIO_PORT, .cfg = b_cfg};
+  GPIO_peri_clock_control(ENC_B_GPIO_PORT, GPIO_CLOCK_ENABLE);
+  GPIO_init(&b_handle);
+
+  timer_peri_clock_control(ENC_TIMER_PORT, TIMER_ENABLE);
+
+  int smcr_word = 0;
+  int ccer_word = 0;
+  int cr1_word = 0;
+  int ccmr1_word = 0;
+  int arr_word = 0;
 
   // Steps for turning on encoder mode (page 484 in the ref manual)
   // 1. Write SMS='011' in TIMx_SMCR register (this is for quad enc)
+  smcr_word |= (0x3 << TIM_SMCR_SMS_Pos);
 
   // 2. SElect the TI1 and TI@ polarity:
   // PRogram the CC1P and CC2P bits in TIMx_CCER.
   // Input filter can be programmed as well (but this
   // has a driver on it). CC1NP and CC2NP must be kept low.
-
   // As a note, refer to Table 107 for counting direction vs encoder signals
 
   // 3. Configure DIR (for direction) and TIMx_ARR register (for auto reload value it counts up to or down from)
+  arr_word = 0xFFFF;
 
-  // 4. Map inputs: CC1S='01' in TIMx_CCMR1 register, CC2S='01' on TIMx_CCMR2 register
+  // 4. Map inputs: CC1S='01' in TIMx_CCMR1 register, CC2S='01' on TIMx_CCMR1 register
+  ccmr1_word |= (0x1 << TIM_CCMR1_CC2S_Pos) | (0x1 << TIM_CCMR1_CC1S_Pos);
 
   // 5a. CC1P='0', CC1NP='0', IC1F='0000 (TIMx_CCER register)'
   // 5b. CC2P='0', CC2NP='0', IC2F='0000 (TIMx_CCER register)'
+  ccer_word |= TIM_CCER_CC1E | TIM_CCER_CC2E;
 
-  // 6. CEN = 1
+  // 6. CEN = 1 ( and dir set to rising)
+  cr1_word |= TIM_CR1_CEN;
+
+  ENC_TIMER_PORT->ARR = arr_word;
+  ENC_TIMER_PORT->CCMR1 = ccmr1_word;
+  ENC_TIMER_PORT->SMCR = smcr_word;
+  ENC_TIMER_PORT->CCER = ccer_word;
+  ENC_TIMER_PORT->CR1 = cr1_word;
 }
