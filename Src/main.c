@@ -24,6 +24,7 @@
 #include "stm32f446xx_i2c_1602.h"
 #include "stm32f446xx_tim.h"
 
+void setup_timer(void);
 void setup_encoder_mode(void);
 
 #if !defined(__SOFT_FP__) && defined(__ARM_FP)
@@ -52,6 +53,9 @@ int _write(int le, char* ptr, int len) {
 int enc_cnt;
 
 int main(void) {
+  setup_timer();
+  setup_encoder_mode();
+
   setup_1602_lcd_peripherals(16E6, 50);
   setup_1602_lcd_screen();
 
@@ -68,7 +72,31 @@ int main(void) {
     enc_cnt++;
     convert_uint32_to_str(line2_str, SIZEOF(line2_str), enc_cnt);
     set_1602_lcd_str("Encoder count:", SIZEOF(line1_str), line2_str, SIZEOF(line2_str));
-    WAIT(1000);
+    WAIT(1000000);
+  }
+}
+
+void setup_timer(void) {
+  TimerHandle_t tim_handle = {.cfg = {.channel_1 =
+                                          {
+                                              .channel_mode = TIMER_CHANNEL_MODE_COMPARE,
+                                              .gpio_en = TIMER_DISABLE,
+                                              .ccr = 0x7fff,
+                                              .interrupt_en = TIMER_ENABLE,
+                                          },
+                                      .channel_count = 1,
+                                      .arr = 0xffff,
+                                      .prescaler = 257,
+                                      .start_enabled = TIMER_ENABLE},
+                              .p_base_addr = TIM4};
+  timer_peri_clock_control(TIM4, 1);
+  timer_init(&tim_handle);
+  NVIC_EnableIRQ(TIM4_IRQn);
+}
+
+void TIM4_IRQHandler(void) {
+  if (timer_irq_handling(TIM4, 1)) {
+    int a = 0;
   }
 }
 
@@ -81,9 +109,7 @@ int main(void) {
 #define ENC_B_GPIO_ALTFN 1
 
 void setup_encoder_mode(void) {
-  timer_peri_clock_control(TIM1, TIMER_ENABLE);
-
-  // TODO: Verify the pins and line driver in the AD2
+  timer_peri_clock_control(ENC_TIMER_PORT, TIMER_ENABLE);
 
   // Set GPIO for PA8 and PA9, Alt function AF1
   GPIOConfig_t a_cfg = {.mode = GPIO_MODE_ALTFN,
