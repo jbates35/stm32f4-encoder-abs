@@ -50,7 +50,15 @@ int _write(int le, char* ptr, int len) {
     for (int sleep_cnt = 0; sleep_cnt < CNT; sleep_cnt++); \
   } while (0)
 
-int enc_cnt;
+#define ENC_TIMER_PORT TIM1
+#define ENC_A_GPIO_PORT GPIOA
+#define ENC_A_GPIO_PIN 8
+#define ENC_A_GPIO_ALTFN 1
+#define ENC_B_GPIO_PORT GPIOA
+#define ENC_B_GPIO_PIN 9
+#define ENC_B_GPIO_ALTFN 1
+unsigned long enc_cnt;
+uint16_t prev_ticks;
 
 int main(void) {
   setup_timer();
@@ -69,10 +77,9 @@ int main(void) {
 
   enable_1602_lcd_updating();
   for (;;) {
-    enc_cnt++;
     convert_uint32_to_str(line2_str, SIZEOF(line2_str), enc_cnt);
     set_1602_lcd_str("Encoder count:", SIZEOF(line1_str), line2_str, SIZEOF(line2_str));
-    WAIT(1000000);
+    WAIT(1000);
   }
 }
 
@@ -85,8 +92,8 @@ void setup_timer(void) {
                                               .interrupt_en = TIMER_ENABLE,
                                           },
                                       .channel_count = 1,
-                                      .arr = 0xffff,
-                                      .prescaler = 257,
+                                      .arr = 0xFFFF,
+                                      .prescaler = 0,
                                       .start_enabled = TIMER_ENABLE},
                               .p_base_addr = TIM4};
   timer_peri_clock_control(TIM4, 1);
@@ -105,8 +112,6 @@ void TIM4_IRQHandler(void) {
 
 void setup_encoder_mode(void) {
   timer_peri_clock_control(ENC_TIMER_PORT, TIMER_ENABLE);
-
-  // Set GPIO for PA8 and PA9, Alt function AF1
   GPIOConfig_t a_cfg = {.mode = GPIO_MODE_ALTFN,
                         .speed = GPIO_SPEED_MEDIUM,
                         .float_resistor = GPIO_PUPDR_NONE,
@@ -116,6 +121,7 @@ void setup_encoder_mode(void) {
   GPIO_peri_clock_control(ENC_A_GPIO_PORT, GPIO_CLOCK_ENABLE);
   GPIO_init(&a_handle);
 
+  timer_peri_clock_control(ENC_TIMER_PORT, TIMER_ENABLE);
   GPIOConfig_t b_cfg = {.mode = GPIO_MODE_ALTFN,
                         .speed = GPIO_SPEED_MEDIUM,
                         .float_resistor = GPIO_PUPDR_NONE,
@@ -126,6 +132,9 @@ void setup_encoder_mode(void) {
   GPIO_init(&b_handle);
 
   timer_peri_clock_control(ENC_TIMER_PORT, TIMER_ENABLE);
+
+  prev_ticks = ENC_TIMER_PORT->CNT;
+  enc_cnt = 0;
 
   int smcr_word = 0;
   int ccer_word = 0;
