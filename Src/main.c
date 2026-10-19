@@ -96,17 +96,12 @@ void setup_timer(void) {
 
 void TIM4_IRQHandler(void) {
   if (timer_irq_handling(TIM4, 1)) {
-    int a = 0;
+    int delta = ENC_TIMER_PORT->CNT - prev_ticks;
+    prev_ticks = ENC_TIMER_PORT->CNT;
+    if (delta < -32768) delta += 65536;
+    enc_cnt = enc_cnt + delta;
   }
 }
-
-#define ENC_TIMER_PORT TIM1
-#define ENC_A_GPIO_PORT GPIOA
-#define ENC_A_GPIO_PIN 8
-#define ENC_A_GPIO_ALTFN 1
-#define ENC_B_GPIO_PORT GPIOA
-#define ENC_B_GPIO_PIN 9
-#define ENC_B_GPIO_ALTFN 1
 
 void setup_encoder_mode(void) {
   timer_peri_clock_control(ENC_TIMER_PORT, TIMER_ENABLE);
