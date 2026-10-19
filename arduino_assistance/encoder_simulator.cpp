@@ -6,7 +6,7 @@ int current_count;
 #define B_PIN 9
 #define LED_PIN 13
 
-#define INTERVAL_MICRO 1000
+#define INTERVAL_MICRO 100
 
 unsigned long start_micros;
 unsigned long led_micros;
