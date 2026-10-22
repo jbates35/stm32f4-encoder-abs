@@ -4,7 +4,10 @@
 #include <stdio.h>
 #include <string.h>
 
-EncoderStatus_t init_encoder(TIM_TypeDef *tim_port, int* starting_tick) {
+int prev_count;
+long current_ticks;
+
+EncoderStatus_t init_encoder(TIM_TypeDef *tim_port) {
   int smcr_word = 0;
   int ccer_word = 0;
   int cr1_word = 0;
@@ -35,6 +38,9 @@ EncoderStatus_t init_encoder(TIM_TypeDef *tim_port, int* starting_tick) {
   cr1_word |= TIM_CR1_CEN;
 
   timer_peri_clock_control(tim_port, 1);
+
+  current_ticks = 0;
+  prev_count = tim_port->CNT;
 	
   tim_port->ARR = arr_word;
   tim_port->CCMR1 = ccmr1_word;
@@ -42,7 +48,22 @@ EncoderStatus_t init_encoder(TIM_TypeDef *tim_port, int* starting_tick) {
   tim_port->CCER = ccer_word;
   tim_port->CR1 = cr1_word;
 
-  *starting_tick = tim_port->CNT;
-
   return ENCODER_STATUS_OK;
+}
+
+EncoderStatus_t update_tick_count(TIM_TypeDef *tim_port) {
+    if(tim_port==NULL) {
+      return ENCODER_STATUS_NULL_PTR;
+    }
+    int count = tim_port->CNT;
+    int delta = count - prev_count;
+    prev_count = count;
+  
+    // Handle rollovers
+    if (delta < -32768) delta += 65536;
+    else if (delta > 32768) delta -= 65536;
+
+    current_ticks = current_ticks + delta;
+
+    return ENCODER_STATUS_OK;
 }

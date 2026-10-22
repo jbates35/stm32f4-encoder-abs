@@ -18,9 +18,11 @@
   } while (0)
 
 typedef enum {
-	ENCODER_STATUS_OK = 0
+	ENCODER_STATUS_OK = 0,
+  ENCODER_STATUS_NULL_PTR = 1
 } EncoderStatus_t;
 
-EncoderStatus_t init_encoder(TIM_TypeDef *tim_port, int* starting_tick);
+EncoderStatus_t init_encoder(TIM_TypeDef *tim_port);
+EncoderStatus_t update_tick_count(TIM_TypeDef *tim_port);
 
 #endif
