@@ -4,6 +4,9 @@ int current_count;
 
 #define A_PIN 8
 #define B_PIN 9
+#define A_BAR_PIN 10
+#define B_BAR_PIN 11
+  
 #define LED_PIN 13
 
 #define INTERVAL_MICRO 100
@@ -16,10 +19,14 @@ void setup() {
   // put your setup code here, to run once:
   pinMode(A_PIN, OUTPUT);
   pinMode(B_PIN, OUTPUT);
+  pinMode(A_BAR_PIN, OUTPUT);
+  pinMode(B_BAR_PIN, OUTPUT);
   pinMode(LED_PIN, OUTPUT);
 
   digitalWrite(A_PIN, 0);
   digitalWrite(B_PIN, 0);
+  digitalWrite(A_BAR_PIN, 0);
+  digitalWrite(B_BAR_PIN, 0);
   digitalWrite(LED_PIN, 0);
 
   current_count = 0;
@@ -37,19 +44,31 @@ void loop() {
     switch(current_count) {
       case 0:
         digitalWrite(A_PIN, 1);
+        digitalWrite(A_BAR_PIN, 0);
+
         digitalWrite(B_PIN, 0);
+        digitalWrite(B_BAR_PIN, 1);
         break;
       case 1:
         digitalWrite(A_PIN, 1);
+        digitalWrite(A_BAR_PIN, 0);
+
         digitalWrite(B_PIN, 1);
+        digitalWrite(B_BAR_PIN, 0);
         break;
       case 2:
         digitalWrite(A_PIN, 0);
+        digitalWrite(A_BAR_PIN, 1);
+
         digitalWrite(B_PIN, 1);
+        digitalWrite(B_BAR_PIN, 0);
         break;
       case 3:
         digitalWrite(A_PIN, 0);
+        digitalWrite(A_BAR_PIN, 1);
+        
         digitalWrite(B_PIN, 0);
+        digitalWrite(B_BAR_PIN, 1);
         break;
     }
     current_count++;
