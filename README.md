@@ -1,3 +1,4 @@
+```
 power:
 red: 3v3
 blk: gnd
@@ -10,3 +11,4 @@ spi1 - d13 - pa5 - yellow: spi clock
 gpio:
 d9 - pc7 - purple: reset
 d10 - pb6 - orange: chip select
+```
